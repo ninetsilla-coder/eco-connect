@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const navbarHeight = document.querySelector(".navbar").offsetHeight || 64;
       const rect = targetEl.getBoundingClientRect();
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const targetY = rect.top + scrollTop - navbarHeight - 40;
+      const targetY = rect.top + scrollTop - navbarHeight;
 
       window.scrollTo({
         top: targetY,

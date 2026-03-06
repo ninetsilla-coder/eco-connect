@@ -46,8 +46,7 @@ img {
   position: sticky;
   top: 0;
   z-index: 50;
-  background-color: #d4d93e
-;
+  background-color: #eff0c9;
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -60,18 +59,18 @@ img {
 }
 
 .logo-text {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-weight: 700;
   font-size: 1.3rem;
   letter-spacing: 0.06em;
 }
 
 .logo-eco {
-  color: #0F3D2E;
+  color: #087334;
 }
 
 .logo-connect {
-  color: var(--white);
+  color: #82bc43;
 }
 
 .nav-links {
@@ -81,7 +80,7 @@ img {
 }
 
 .nav-links a {
-  color: #4f7637;
+  color: #0F3D2E;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 600;
@@ -102,18 +101,31 @@ img {
 /* Hero */
 .hero {
   position: relative;
-  min-height: 80vh;
+  min-height: calc(100vh - 64px);
   display: flex;
   align-items: center;
-  color: var(--white);
-  background-image: url("https://i.ibb.co/rGC3hH7n/PORTADA.png");
+  justify-content: center;
+  color: #2A4438;
+  background-image: url("https://i.ibb.co/bMpgQZVB/uwu.png");
   background-size: cover;
   background-position: center;
+  opacity: 1;
+}
+
+/* Capa de color encima de la imagen */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #2A4438; 
+  z-index: 0;
+  opacity: 0.2;
 }
 
 .hero-content {
   position: relative;
   padding: 5rem 0 4rem;
+  text-align: center;
 }
 
 .hero-badge {
@@ -129,25 +141,27 @@ img {
 }
 
 .hero-title {
-  font-family: "Anton", system-ui, sans-serif;
-  font-weight: 700;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-weight: 900;
   font-size: clamp(2.6rem, 5.4vw, 3.4rem);
   line-height: 1.05;
   margin-bottom: 1.3rem;
   letter-spacing: 0.06em;
+  color: #f8f7e5;
 }
 
 .hero-subtitle {
   max-width: 620px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.88);
-  margin-bottom: 1.7rem;
+  margin: 0 auto 1.7rem;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.9rem;
+  justify-content: center;
 }
 
 /* Botones */
@@ -166,8 +180,8 @@ img {
 }
 
 .btn-primary {
-  background-color: var(--green-main);
-  color: var(--white);
+  background-color: #b3c593;
+  color: #087334;
   box-shadow: 0 10px 20px rgba(27, 94, 32, 0.35);
 }
 
@@ -194,6 +208,14 @@ img {
 /* Secciones */
 .section {
   padding: 4rem 0;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+
+}
+
+.section > .container {
+  width: 100%;
 }
 
 .section-alt {
@@ -201,9 +223,9 @@ img {
 }
 
 .section-title {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-size: 2.5rem;
-  font-weight: 700;
+  font-weight: 850;
   margin-bottom: 0.8rem;
   color: negro;
   letter-spacing: 0.06em;
@@ -226,7 +248,7 @@ img {
   display: grid;
   grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr);
   gap: 2rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .grid {
@@ -257,9 +279,9 @@ img {
 }
 
 .card-title {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-size: 1.2rem;
-  font-weight: 700;
+  font-weight: 850;
   margin-bottom: 0.6rem;
   color: var(--brown-dark);
   letter-spacing: 0.05em;
@@ -274,13 +296,21 @@ img {
 #quienes-somos {
   position: relative;
   overflow: hidden;
-  background-color: #d4d93e;
+  background-color: #b3c593;
+}
+
+#quienes-somos .two-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr);
+  gap: 2rem;
+  align-items: start;
+  position: relative;
 }
 
 /* IMPACTO con imagen de fondo */
 #impacto {
   position: relative;
-  color: #d4d93e;
+  color: #3F5E4B;
   overflow: hidden;
 }
 
@@ -288,19 +318,18 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("https://i.ibb.co/fzkSfgph/IMPACTO-ECO-C.png");
+  background-image: url("https://i.ibb.co/35pwPtSN/aestheic.png");
   background-size: cover;
   background-position: center;
-  filter: blur(3px);
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 #impacto::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: #d4d93e;
-  opacity: 0.3;
+  background: #3F5E4B;
+  opacity: 0.8;
 }
 
 #impacto > .container {
@@ -308,22 +337,60 @@ img {
   z-index: 1;
 }
 
-#impacto .section-title,
+#impacto .section-title {
+ color: #FFFFFF
+ 
+}
+
 #impacto .section-text {
-  color: var(--green-main);
+  color: #EDEDE6;
 }
 
 #impacto .section-text {
   margin-bottom: 2rem;
+
 }
+
+/* Mini cards de la sección Impacto */
+#impacto .metric-card {
+  background-color: #F5F5F2;  /* nuevo color de fondo */
+  color: #1F4D2E;             /* color del texto */
+  
+}
+
+#impacto .metric-card .metric-value{
+color: #2F3E34;
+font-size: 3.5rem;
+font-weight: 650;
+
+}
+
+#impacto .metric-card .metric-label {
+  color: #4A4A4A;
+}
+
+/* Contenedor de las tarjetas */
+#impacto .grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* como ya lo tengas */
+  gap: 2.4rem;                                      /* un poco más de espacio entre ellas */
+}
+
+/* Tarjetas de impacto */
+#impacto .metric-card {
+  padding: 2rem 2.8rem;   /* más padding = más altas y más anchas */
+  min-height: 150px;      /* más ALTA mínimo */
+  border-radius: 1.6rem;
+}
+
 
 /* DEMO RESIDUOS (sin imagen, solo color) */
 #demo-residuos {
-  background-color: #f9af3c;
+  background-color: #24352E;
 }
 
 #demo-residuos .section-text {
   margin-bottom: 2rem;
+  color: #fffae5;
 }
 
 /* BENEFICIOS con imagen CONÓCENOS */
@@ -337,12 +404,11 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("https://i.ibb.co/ynxh6xzt/choose-me.png");
+  background-image: url("https://i.ibb.co/FbX6QL7B/lololo.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(5px);
-  opacity: 0.2;
+  opacity: 0.3;
   z-index: 0;
 }
 
@@ -351,7 +417,7 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background: #f8f7e5;
+  background: #B7C69A;
   opacity: 0.3;
   z-index: 1;
 }
@@ -373,7 +439,7 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: url("https://i.ibb.co/Xff8DXHJ/yaquieroacabar.png");
+  background-image: url("https://i.ibb.co/1GYDhqsm/wiii.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -387,7 +453,7 @@ img {
   content: "";
   position: absolute;
   inset: 0;
-  background: #d4d93e;
+  background: #E6E1CF;
   opacity: 0.3;
   z-index: 1;
 }
@@ -409,7 +475,7 @@ img {
 }
 
 .metric-value {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--green-main);
@@ -424,7 +490,7 @@ img {
 
 /* Demo residuos */
 .waste-card {
-  background-color: #f8f7e5;
+  background-color: #fffae5;
   border-radius: 0.9rem;
   padding: 1.3rem 1.2rem;
   box-shadow: var(--shadow-soft);
@@ -433,11 +499,11 @@ img {
 }
 
 .waste-type {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  color: black;
+  color: #1A1A1A;
   letter-spacing: 0.04em;
 }
 
@@ -470,7 +536,7 @@ img {
 
 /* Testimonios */
 .testimonial-card {
-  background-color: #f8f7e5;
+  background-color: #3F5E4B;
   border-radius: 1rem;
   padding: 1.4rem 1.4rem 1.3rem;
   box-shadow: var(--shadow-soft);
@@ -479,13 +545,13 @@ img {
 }
 
 .testimonial-text {
-  color: var(--text-main);
+  color: #FFFFFF;
   margin-bottom: 0.7rem;
 }
 
 .testimonial-author {
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: #C7D6CC;
 }
 
 /* FAQ contenido */
@@ -495,24 +561,24 @@ img {
 }
 
 .faq-item {
-  background-color: var(--white);
+  background-color: #F7F5EE;
   border-radius: 0.9rem;
   padding: 1rem 1.1rem;
   border: 1px solid var(--border-soft);
 }
 
 .faq-question {
-  font-family: "Anton", system-ui, sans-serif;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.4rem;
-  color: var(--green-main);
+  color: #3E5447;
   letter-spacing: 0.04em;
 }
 
 .faq-answer {
   font-size: 0.93rem;
-  color: var(--text-muted);
+  color: #5F6F66;
 }
 
 /* Formulario */
@@ -572,8 +638,8 @@ textarea:focus {
 
 /* Footer */
 .footer {
-  background-color: #d4d93e;
-  color: #4f7637;
+  background-color: #eff0c9;
+  color: #0F3D2E;
   padding: 1.5rem 0;
 }
 
@@ -618,6 +684,7 @@ textarea:focus {
 
   .hero-title {
     font-size: 2.1rem;
+    color: #f8f7e5;
   }
 
   .section {
@@ -626,115 +693,160 @@ textarea:focus {
 }
 
 /* ===== Estilos específicos de BENEFICIOS ===== */
+/* Título de la sección Beneficios */
 #beneficios .section-title {
-  color: #ffffff;   /* blanco */
-  font-weight: 700; /* negritas */
+  color: black;
+  font-weight: 850;
+  white-space: nowrap;
+  margin-top: 0;        /* sin espacio arriba */
+  margin-bottom: 1rem;  /* solo abajo */
 }
 
+/* Reduce el padding superior de toda la sección */
+#beneficios.section {
+  padding-top: 0rem;    /* baja este valor hasta que te guste */
+}
+
+
 #beneficios .section-text {
-  color: #ffffff;   /* blanco */
+  color: #1A1A1A;   /* blanco */
   font-weight: 400; /* normal */
 }
 
-#beneficios .card-title {
-  color: #1f2933;
-}
-
 #faq .section-title {
-  color: var(--green-main);   /* blanco */
+  color: #2C3E34;   /* blanco */
 }
 
 /* Card grande crema en QUIÉNES SOMOS */
 .card--quienes-amplia {
-  background: #f8f7e5;      /* color grande */
+  grid-column: 1 / -1;
+  background: #fffae5;      /* color grande */
   border-radius: 1.5rem;
-  padding: 2.5rem 2.6rem;
+  padding: 4rem 9rem 4rem 3rem;
   box-shadow: var(--shadow-soft);
+  
 }
 
 /* Mini card naranja en QUIÉNES SOMOS */
 .card--quienes-mini {
-  background: #f9af3c;      /* naranja */
-  color: #1f2933;           /* texto oscuro */
-  min-height: 398px;  /* ajusta este número para hacerla más larga */
+  background: #1F3D2B;      /* naranja */
+  color: #ffffff;           /* texto oscuro */
+  min-height: 260px;  /* ajusta este número para hacerla más larga */
   display: flex;
   flex-direction: column;
   justify-content: center; /* opcional: centra el texto verticalmente */
-
+  position: absolute;
+  right: 3rem;        /* qué tanto se mete hacia la crema */
+  top: 50%;           /* altura relativa a la crema */
+  transform: translateY(-50%);
+  width: 360px;       /* ancho de la card verde */
 }
+
 
 /* Ajuste para que los textos dentro respeten colores */
 .card--quienes-mini .card-title,
 .card--quienes-mini .card-text {
-  color: #1f2933;
+  color: white;
 }
 
+/* Título dentro de la card crema */
+.card--quienes-amplia .section-title {
+  font-size: 2.8rem;   /* súbele o bájale a este valor */
+  font-weight: 850;
+}
+
+/* Párrafos dentro de la card crema */
+.card--quienes-amplia .section-text {
+  font-size: 1rem;   /* tamaño del texto normal */
+  line-height: 1.7;
+}
+
+
 #impacto .section-title {
-  font-size: 4rem;  /* cambia este valor al tamaño que quieras */
+  font-size: 3.5rem;  /* cambia este valor al tamaño que quieras */
+  font-weight: 850;
 }
 
 /* Solo el título "Demo de residuos disponibles" */
 #demo-residuos .section-title {
-  color: #f8f7e5;    /* el color que quieras */
+  color: #fffae5;    /* el color que quieras */
   font-size: 4rem; /* ajusta el tamaño: 2rem, 2.4rem, etc. */
+  line-height: 1.1;
 }
 
 /* Solo el título "Pero..¿Por qué escogernos?" */
 #beneficios .section-title {
-  color: #f8f7e5;    /* el color que quieras */
+  color: #1A1A1A;    /* el color que quieras */
+  font-size: 3.5rem;
+  white-space: nowrap;
 
 }
 
 /* Texto general de BENEFICIOS (fuera de la mini card) */
 #beneficios .section-text {
   color: #1f2933;     /* color que quieras */
-  font-size: 1rem;    /* ajusta tamaño: 0.95rem, 1.1rem, etc. */
+  font-size: 1.2rem;    /* ajusta tamaño: 0.95rem, 1.1rem, etc. */
+
 }
 
 #beneficios .benefits-list li {
   color: black;      /* mismo color u otro */
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 /* Mini card general de BENEFICIOS (Casos de uso típicos) */
 #beneficios .card {
-  background-color: #4f7637;
+  background-color: #fffae5;
   color: #f8f7e5;
 }
 
-/* Mini card SOLO del título "PERO..¿POR QUÉ ESCOGERNOS?" */
-#beneficios .card.card--beneficios-titulo {
-  background-color: #4f7637;  /* color distinto */
+/* Solo la mini de “Casos de uso típicos” */
+#beneficios .card--beneficios-casos {
+  margin-left: 8rem;    /* más a la derecha; prueba 2rem, 3rem, etc. */
+  margin-top: 7rem;
+  max-width: 330px;     /* más angosta */
+  width: 100%;
+  padding: 1.2rem 2.4rem; /* controla alto/ancho interno */
+  max-height: 300px;
+  overflow: hidden;
 }
 
-#beneficios .card-title,
-#beneficios .card-text {
-  color: #f8f7e5;
+#beneficios .two-columns {
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.4fr);
 }
 
-.card--beneficios-titulo {
-  display: inline-block;
-  max-width: 100%;
-  padding: 0.6rem 1.2rem;
-  border-radius: 999px;
-  box-shadow: var(--shadow-soft);
-  margin-bottom:1rem;
 
+/* Solo el texto dentro de la mini “Casos de uso típicos” */
+#beneficios .card--beneficios-casos .card-text {
+  font-size: 1rem;   /* más chico = se ve menos larga */
+  line-height: 1.4;    /* menos interlineado */
+  color: #1A1A1A;
+  font-family: "poppins", system-ui, sans-serif;
 }
 
-.card--beneficios-titulo .section-title {
-  margin: 0;
-  white-space: normal;
 
+/* Solo el texto dentro de la mini “Casos de uso típicos” */
+#beneficios .card--beneficios-casos .card-title {
+  font-size: 1.5rem;   /* más chico = se ve menos larga */
+  line-height: 1.4;    /* menos interlineado */
+  color: #1A1A1A;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
 }
+
 
 #testimonios {
-  background-color: #4f7637;  /* nuevo fondo de toda la sección */
+  background-color: #fffae5;  /* nuevo fondo de toda la sección */
 }
 
 /* Color del título de la sección */
 #testimonios .section-title {
-  color: #f8f7e5;            /* el color que quieras para "LO QUE DICEN LAS EMPRESAS" */
+  color: #1F3D2B; 
+  margin-bottom: 4rem;
+  font-size: 3.5rem;
+  white-space: nowrap;
+  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  text-align: center;   
+          
 }
 
 #faq .section-title {
@@ -742,13 +854,19 @@ textarea:focus {
 }
 
 #contacto {
-  background-color: #f9af3c;  /* color de fondo de TODA la sección */
+  background-color: #C9D2B3;  /* color de fondo de TODA la sección */
 }
 
 #contacto .section-title {
-  color: #f8f7e5;  /* el color que quieras para "REGISTRA TU EMPRESA" */
+  color: #24352A;  /* el color que quieras para "REGISTRA TU EMPRESA" */
   font-size: 5rem;  /* hazlo más grande, prueba 2.2–2.8rem */
+
 }
+
+#contacto .section-text {
+  color: #3F4A42;  /* el color que quieras para "REGISTRA TU EMPRESA" */
+ 
 }
+
 
 
