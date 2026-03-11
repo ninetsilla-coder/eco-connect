@@ -543,4 +543,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.href = "profile.html";
     });
   }
+
+ // === Hamburguesa ===
+  const hamburgerBtn = document.getElementById("hamburger-btn");
+  const navLinksContainer = document.getElementById("nav-links");
+
+  if (hamburgerBtn && navLinksContainer) {
+    hamburgerBtn.addEventListener("click", () => {
+      navLinksContainer.classList.toggle("nav-open");
+    });
+  }
 });
