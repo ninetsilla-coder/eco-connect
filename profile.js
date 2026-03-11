@@ -124,6 +124,35 @@ document.addEventListener("DOMContentLoaded", () => {
   setupYear();
   loadProfile();
 
+  // === PERSONALIZAR DROPDOWN EN PROFILE ===
+  supabaseClient.auth.getSession().then(async ({ data, error }) => {
+    if (error || !data.session || !data.session.user) return;
+
+    const dropdownMenu = document.getElementById("dropdown-residuos");
+    if (!dropdownMenu) return;
+
+    const allLinks = dropdownMenu.querySelectorAll("a[data-role]");
+    allLinks.forEach((link) => {
+      link.style.display = "none";
+    });
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from("profiles")
+      .select("company_type")
+      .eq("id", data.session.user.id)
+      .maybeSingle();
+
+    if (profileError || !profile?.company_type) return;
+
+    const linksForRole = dropdownMenu.querySelectorAll(
+      `a[data-role="${profile.company_type}"]`
+    );
+    linksForRole.forEach((link) => {
+      link.style.display = "block";
+    });
+  });
+  // === FIN DROPDOWN ===
+
   if (logoutButton) {
     logoutButton.addEventListener("click", async () => {
       await supabaseClient.auth.signOut();
@@ -168,7 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let logoUrlToSave = null;
 
-      // Si hay archivo de logo, subirlo
       const file = editLogoInput?.files && editLogoInput.files[0];
       if (file) {
         try {

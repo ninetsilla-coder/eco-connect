@@ -16,53 +16,54 @@
 <body>
  <!-- Navbar -->
   <header class="navbar">
-    <div class="container navbar-content">
-      <div class="logo-text">
-        <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
-      </div>
+  <div class="container navbar-content">
+    <div class="logo-text">
+      <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
+    </div>
 
-<!-- Botón hamburguesa (solo se verá en móvil con CSS) -->
     <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
       ☰
     </button>
 
-      <nav class="nav-links" id="nav-links">
-        <a href="#quienes-somos">CONÓCENOS</a>
-        <a href="#impacto">IMPACTO</a>
+    <nav class="nav-links" id="nav-links">
+      <a href="index.html#quienes-somos">CONÓCENOS</a>
+      <a href="index.html#impacto">IMPACTO</a>
 
-  <!-- RESIDUOS con link + dropdown en un solo bloque -->
- <div class="nav-item dropdown" id="menu-residuos">
-  <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
-  <div class="dropdown-menu" id="dropdown-residuos">
-    <!-- Opciones para proveedor de residuos -->
-    <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
-    <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
-    <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
+      <div class="nav-item dropdown" id="menu-residuos">
+        <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
+        <div class="dropdown-menu" id="dropdown-residuos">
+          <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
+          <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
+          <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
 
-    <!-- Opciones para logística -->
-    <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
-    <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
-    <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
- 
-    <!-- Opciones para comprador -->
-    <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
-    <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
-    <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
+          <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
+          <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
+          <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
 
-   </div>
-</div>
-
-        <a href="#beneficios">BENEFICIOS</a>
-        <a href="#faq">FAQ</a>
-        </nav>
-
-      <div class="navbar-auth">
-        <button id="login-button" class="btn btn-primary">Login / Registrarse</button>
-        <span id="account-label" class="navbar-account" style="display: none;">Mi cuenta</span>
-        <button id="logout-button" class="btn btn-outline" style="display: none;">Cerrar sesión</button>
+          <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
+          <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
+          <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
+        </div>
       </div>
+
+      <a href="index.html#beneficios">BENEFICIOS</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="index.html#contacto">CONTACTO</a>
+    </nav>
+
+    <div class="navbar-auth">
+      <button id="login-button" class="btn btn-primary" style="display: none;">
+        Login / Registrarse
+      </button>
+      <span id="account-label" class="navbar-account" style="display: inline-block;">
+        Mi cuenta
+      </span>
+      <button id="logout-button" class="btn btn-outline">
+        Cerrar sesión
+      </button>
     </div>
-  </header>
+  </div>
+</header>
 
 
   <main class="section">
@@ -123,5 +124,6 @@
   <!-- Supabase + script de perfil -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="profile.js"></script>
+
 </body>
 </html>
