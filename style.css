@@ -1279,6 +1279,7 @@ a.btn-outline:hover,
   }
 }
 
+/* Botón hamburguesa: oculto en desktop */
 .hamburger {
   display: none;
   background: transparent;
@@ -1288,27 +1289,30 @@ a.btn-outline:hover,
   color: #0F3D2E;
 }
 
+/* Vista móvil */
 @media (max-width: 900px) {
   .navbar-content {
     height: auto;
     padding: 0.5rem 0;
   }
 
+  /* Mostrar botón hamburguesa en móvil */
   .hamburger {
     display: block;
   }
 
+  /* Nav links en móvil: ocultos por defecto */
   .nav-links {
     display: none;
     flex-direction: column;
     gap: 0.75rem;
     padding: 0.75rem 0;
+    background-color: #eff0c9; /* para que se vea el fondo */
   }
 
+  /* Cuando el menú está abierto */
   .nav-links.nav-open {
     display: flex;
   }
 }
-
-
 
