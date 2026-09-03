@@ -2,10 +2,8 @@
 // Conexión a Supabase
 // ==============================
 
-const SUPABASE_URL = "https://afutqmvovdkqyxopdcfo.supabase.co";
-const SUPABASE_KEY = "sb_publishable_P7aBG_DaIGC2fKZR7UaQBw_wdI1BU3R";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+// La conexión a Supabase vive en js/supabase.js, que se carga antes
+// que este archivo. Desde aquí solo se usa la variable supabaseClient.
 // ==============================
 // Manejo de sesión y navbar
 // ==============================
@@ -213,6 +211,14 @@ function setupForm() {
         statusEl.classList.add("error");
         return;
       }
+
+      // Avisar por correo. Si esto falla no pasa nada grave:
+      // el mensaje ya quedó guardado en la tabla empresas_registro.
+      fetch("/api/contacto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa, correo, mensaje }),
+      }).catch((err) => console.error("No se pudo enviar la notificación:", err));
 
       form.reset();
       statusEl.textContent =
@@ -514,12 +520,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Scroll suave
-  const navLinks = document.querySelectorAll(".nav-links a[href^='#']");
-  navLinks.forEach((link) => {
+  // Scroll suave solo en index y para anchors internos (#...)
+const navAnchors = document.querySelectorAll(".nav-links a");
+
+navAnchors.forEach((link) => {
+  const href = link.getAttribute("href");
+
+  // Solo manejar links tipo "#impacto" cuando estamos en index
+  const isInternalAnchor = href && href.startsWith("#");
+  const isIndexPage = window.location.pathname.endsWith("index.html") ||
+                      window.location.pathname === "/" ;
+
+  if (isInternalAnchor && isIndexPage) {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      const targetId = link.getAttribute("href").substring(1);
+      const targetId = href.substring(1);
       const targetEl = document.getElementById(targetId);
       if (!targetEl) return;
 
@@ -535,7 +550,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         behavior: "smooth",
       });
     });
-  });
+  }
+});
 
   // "Mi cuenta" → profile.html
   if (accountLabel) {

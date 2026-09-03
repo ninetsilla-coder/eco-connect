@@ -1,10 +1,8 @@
 // ==============================
 // Conexión a Supabase
 // ==============================
-const SUPABASE_URL = "https://afutqmvovdkqyxopdcfo.supabase.co";
-const SUPABASE_KEY = "sb_publishable_P7aBG_DaIGC2fKZR7UaQBw_wdI1BU3R";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+// La conexión a Supabase vive en js/supabase.js, que se carga antes
+// que este archivo. Desde aquí solo se usa la variable supabaseClient.
 // Navbar
 const logoutButton = document.getElementById("logout-button");
 const accountLabel = document.getElementById("account-label");

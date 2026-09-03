@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Eco Connect | Detalle del residuo</title>
+  <title>Eco Connect | Detalle del servicio de transporte</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Fuentes -->
@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Estilos globales -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/style.css" />
 
   <!-- Estilos específicos -->
   <style>
@@ -208,14 +208,14 @@
 
   <main>
     <div class="detalle-wrapper">
-      <a href="comprador-explorar-residuos.html" class="btn-outline" style="margin-bottom: 12px;">&larr; Volver a explorar residuos</a>
+      <a href="comprador-servicios-transporte.html" class="btn-outline" style="margin-bottom: 12px;">&larr; Volver a servicios</a>
 
       <div class="detalle-header">
-        <h1>Detalle del residuo</h1>
-        <p>Consulta la información completa de este residuo antes de mostrar interés o contactar al proveedor.</p>
+        <h1>Detalle del servicio de transporte</h1>
+        <p>Consulta la información completa de este servicio antes de contactar al proveedor logístico.</p>
       </div>
 
-      <p id="status-detalle-residuo" class="form-status"></p>
+      <p id="status-detalle-servicio" class="form-status"></p>
 
       <div id="detalle-layout" class="detalle-layout" style="display:none;">
         <section class="detalle-card" id="detalle-main">
@@ -225,12 +225,12 @@
         <aside class="detalle-side">
           <div class="detalle-side-card" id="detalle-acciones">
             <h3>Acciones</h3>
-            <p>Puedes contactar al proveedor o guardar este residuo en tu lista de intereses.</p>
+            <p>Puedes contactar al proveedor logístico o guardar este servicio en tu lista de intereses.</p>
             <div class="detalle-actions">
-              <button id="btn-contactar" class="btn-outline">Contactar proveedor</button>
+              <button id="btn-contactar" class="btn-outline">Contactar proveedor logístico</button>
               <button id="btn-guardar-interes" class="btn-primary">Guardar en mis intereses</button>
             </div>
-            <p id="mensaje-interes" class="form-status"></p>
+            <p id="mensaje-interes-servicio" class="form-status"></p>
           </div>
         </aside>
       </div>
@@ -239,17 +239,18 @@
 
   <!-- Scripts globales -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/script.js"></script>
 
   <!-- Script específico -->
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
-      const statusEl = document.getElementById("status-detalle-residuo");
+      const statusEl = document.getElementById("status-detalle-servicio");
       const layout = document.getElementById("detalle-layout");
       const detalleMain = document.getElementById("detalle-main");
       const btnContactar = document.getElementById("btn-contactar");
       const btnGuardar = document.getElementById("btn-guardar-interes");
-      const msgInteres = document.getElementById("mensaje-interes");
+      const msgInteres = document.getElementById("mensaje-interes-servicio");
 
       function setMensajeInteres(texto, tipo = "") {
         if (!msgInteres) return;
@@ -261,39 +262,39 @@
 
       // 1) Obtener id desde la URL
       const params = new URLSearchParams(window.location.search);
-      const residuoId = params.get("id");
+      const servicioId = params.get("id");
 
-      if (!residuoId) {
+      if (!servicioId) {
         if (statusEl) {
-          statusEl.textContent = "No se encontró el residuo solicitado.";
+          statusEl.textContent = "No se encontró el servicio solicitado.";
           statusEl.classList.add("error");
         }
         return;
       }
 
       if (statusEl) {
-        statusEl.textContent = "Cargando detalles del residuo...";
+        statusEl.textContent = "Cargando detalles del servicio...";
       }
 
-      // 2) Traer el residuo por id
-      const { data: res, error } = await supabaseClient
-        .from("residuos_publicados")
+      // 2) Traer el servicio por id
+      const { data: servicio, error } = await supabaseClient
+        .from("servicios_transporte")
         .select("*")
-        .eq("id", residuoId)
-        .maybeSingle();  // [web:690][web:674]
+        .eq("id", servicioId)
+        .maybeSingle();  // [web:585][web:693]
 
       if (error) {
-        console.error("Error cargando residuo:", error);  // [web:690]
+        console.error("Error cargando servicio de transporte:", error);  // [web:585]
         if (statusEl) {
-          statusEl.textContent = "Ocurrió un error al cargar el residuo.";
+          statusEl.textContent = "Ocurrió un error al cargar el servicio.";
           statusEl.classList.add("error");
         }
         return;
       }
 
-      if (!res) {
+      if (!servicio) {
         if (statusEl) {
-          statusEl.textContent = "No se encontró el residuo.";
+          statusEl.textContent = "No se encontró el servicio.";
           statusEl.classList.add("error");
         }
         return;
@@ -301,37 +302,29 @@
 
       // 3) Pintar detalle
       let fotosHtml = "";
-      if (res.fotos && Array.isArray(res.fotos) && res.fotos.length > 0) {
+      if (servicio.fotos_urls && Array.isArray(servicio.fotos_urls) && servicio.fotos_urls.length > 0) {
         fotosHtml = `
           <div class="detalle-fotos">
-            ${res.fotos
-              .map((url) => `<img src="${url}" alt="Foto del residuo" />`)
+            ${servicio.fotos_urls
+              .map((url) => `<img src="${url}" alt="Foto del vehículo" />`)
               .join("")}
           </div>
         `;
       }
 
-      const categoriaTexto =
-        res.categoria === "sin_procesar"
-          ? "Sin procesar"
-          : res.categoria === "procesado"
-          ? "Procesado y limpio"
-          : res.categoria || "Sin categoría";
-
       detalleMain.innerHTML = `
         ${fotosHtml}
-        <h2>${res.tipo || "Residuo sin nombre"}</h2>
+        <h2>${servicio.tipo_transporte || "Servicio de transporte"}</h2>
         <div class="detalle-meta">
-          ${res.categoria ? `<span><strong>Categoría:</strong> ${categoriaTexto}</span>` : ""}
-          ${res.cantidad ? `<span><strong>Cantidad:</strong> ${res.cantidad}</span>` : ""}
-          ${res.ubicacion ? `<span><strong>Ubicación:</strong> ${res.ubicacion}</span>` : ""}
-          ${res.frecuencia ? `<span><strong>Frecuencia:</strong> ${res.frecuencia}</span>` : ""}
-          ${res.estado_residuo ? `<span><strong>Estado del residuo:</strong> ${res.estado_residuo}</span>` : ""}
-          ${res.estado ? `<span><strong>Estado de publicación:</strong> ${res.estado}</span>` : ""}
+          ${servicio.capacidad_carga ? `<span><strong>Capacidad:</strong> ${servicio.capacidad_carga}</span>` : ""}
+          ${servicio.zona_cobertura ? `<span><strong>Zona de cobertura:</strong> ${servicio.zona_cobertura}</span>` : ""}
+          ${servicio.tipos_residuos ? `<span><strong>Residuos que transporta:</strong> ${servicio.tipos_residuos}</span>` : ""}
+          ${servicio.disponibilidad ? `<span><strong>Disponibilidad:</strong> ${servicio.disponibilidad}</span>` : ""}
+          ${servicio.estado ? `<span><strong>Estado:</strong> ${servicio.estado}</span>` : ""}
         </div>
         ${
-          res.descripcion
-            ? `<p class="detalle-descripcion"><strong>Descripción:</strong> ${res.descripcion}</p>`
+          servicio.descripcion
+            ? `<p class="detalle-descripcion"><strong>Descripción:</strong> ${servicio.descripcion}</p>`
             : ""
         }
       `;
@@ -342,20 +335,18 @@
       // 4) Botones
       if (btnContactar) {
         btnContactar.addEventListener("click", () => {
-          setMensajeInteres("Aquí irá la acción para contactar al proveedor (versión futura).");
+          setMensajeInteres("Aquí irá la acción para contactar al proveedor logístico (versión futura).");
         });
       }
 
       if (btnGuardar) {
         btnGuardar.addEventListener("click", async () => {
-          if (!res) return;
-
           btnGuardar.disabled = true;
           const textoPrevio = btnGuardar.textContent;
           btnGuardar.textContent = "Guardando...";
           setMensajeInteres("");
 
-          // 1) Obtener usuario logueado
+          // 1) Usuario actual
           const { data: userData, error: userError } = await supabaseClient.auth.getUser();
           if (userError || !userData?.user) {
             setMensajeInteres("Debes iniciar sesión como comprador para guardar intereses.", "error");
@@ -363,24 +354,23 @@
             btnGuardar.textContent = textoPrevio;
             return;
           }
-
           const user = userData.user;
 
-          // 2) Evitar duplicados
+          // 2) Evitar duplicados en intereses
           const { data: existe, error: existeError } = await supabaseClient
             .from("intereses")
             .select("id")
             .eq("user_id", user.id)
-            .eq("tipo", "residuo")
-            .eq("residuo_id", res.id)
+            .eq("tipo", "transporte")
+            .eq("servicio_transporte_id", servicio.id)
             .maybeSingle();  // [web:585][web:690]
 
           if (existeError) {
-            console.error("Error verificando interés existente:", existeError);  // [web:585]
+            console.error("Error verificando interés de servicio:", existeError);  // [web:585]
           }
 
           if (existe) {
-            setMensajeInteres("Este residuo ya está en tus intereses.", "success");
+            setMensajeInteres("Este servicio ya está en tus intereses.", "success");
             btnGuardar.disabled = false;
             btnGuardar.textContent = textoPrevio;
             return;
@@ -391,20 +381,20 @@
             .from("intereses")
             .insert({
               user_id: user.id,
-              tipo: "residuo",
-              residuo_id: res.id,
-              servicio_transporte_id: null
+              tipo: "transporte",
+              residuo_id: null,
+              servicio_transporte_id: servicio.id
             });  // [web:701]
 
           if (insertError) {
-            console.error("Error guardando interés:", insertError);  // [web:701]
+            console.error("Error guardando interés de servicio:", insertError);  // [web:701]
             setMensajeInteres("No se pudo guardar en tus intereses. Intenta de nuevo.", "error");
             btnGuardar.disabled = false;
             btnGuardar.textContent = textoPrevio;
             return;
           }
 
-          setMensajeInteres("Residuo guardado en tus intereses.", "success");
+          setMensajeInteres("Servicio guardado en tus intereses.", "success");
           btnGuardar.disabled = false;
           btnGuardar.textContent = textoPrevio;
         });
