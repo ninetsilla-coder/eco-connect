@@ -416,62 +416,7 @@
   </footer>
 
    <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/script.js"></script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const counters = document.querySelectorAll('#impacto .metric-value');
-    let hasRun = false;
-
-    const animateCounter = (el) => {
-      const target = Number(el.getAttribute('data-target'));
-      const duration = 1500;
-      const start = 0;
-      const startTime = performance.now();
-
-      const tick = (now) => {
-        const progress = Math.min((now - startTime) / duration, 1);
-        const value = Math.floor(start + (target - start) * progress);
-        el.textContent = value.toLocaleString('es-MX');
-        if (progress < 1) requestAnimationFrame(tick);
-      };
-
-      requestAnimationFrame(tick);
-    };
-
-    const startCounters = () => {
-      if (!hasRun) {
-        counters.forEach(animateCounter);
-        hasRun = true;
-      }
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            startCounters();
-          }
-        });
-      },
-      { threshold: 0.4 }
-    );
-
-    const impactoSection = document.querySelector('#impacto');
-    if (impactoSection) observer.observe(impactoSection);
-
-    // 🔹 También al hacer click en el link de nav a #impacto
-    const impactoLink = document.querySelector('a[href="#impacto"]');
-    if (impactoLink) {
-      impactoLink.addEventListener('click', () => {
-        // retraso pequeño para dejar que el scroll ancle la sección
-        setTimeout(startCounters, 400);
-      });
-    }
-  });
-</script>
+  <script type="module" src="js/pages/index.js"></script>
 
 </body>
 </html>
