@@ -1,12 +1,18 @@
 // ==============================================================
-// Navbar, dropdown por rol, hamburguesa y año del footer
+// Comportamiento de la cabecera y el pie
 // ==============================================================
-// Esto estaba reimplementado en los 13 HTML. Ahora vive aquí: cambiar
-// un link del menú vuelve a ser una sola edición.
+// Aquí vive el CÓMO se comporta la estructura: login, cierre de
+// sesión, rol en el dropdown, hamburguesa, año y scroll suave.
+//
+// El QUÉ se pinta está en ui/estructura.js. Los dos archivos se unen
+// por los identificadores de `IDS`, que este módulo consulta con
+// getElementById; dependencias.test.js comprueba que ninguno de los
+// dos lados se quede atrás.
 // ==============================================================
 
 import { alCambiarSesion, cerrarSesion } from "../core/sesion.js";
 import { montarModalAuth } from "./auth-modal.js";
+import { montarEstructura } from "./estructura.js";
 
 // Muestra/oculta los links del dropdown según el rol.
 // ⚠️ Solo visual: el control real son las políticas RLS.
@@ -56,6 +62,22 @@ function montarAnioFooter() {
 }
 
 // Scroll suave para anchors internos, solo en el home.
+//
+// Los links del menú apuntan a "index.html#seccion", no a "#seccion":
+// la forma corta solo resuelve estando ya en index.html, y por eso en
+// las otras doce páginas no hacían nada. Al estar en el home las dos
+// formas señalan aquí mismo, así que se aceptan ambas.
+function idDeAncla(href) {
+  if (!href) return null;
+  const almohadilla = href.indexOf("#");
+  if (almohadilla === -1) return null;
+
+  const ruta = href.slice(0, almohadilla);
+  if (ruta && ruta !== "index.html" && ruta !== "/") return null;
+
+  return href.slice(almohadilla + 1) || null;
+}
+
 function montarScrollSuave() {
   const esIndex =
     window.location.pathname === "/" ||
@@ -63,11 +85,11 @@ function montarScrollSuave() {
   if (!esIndex) return;
 
   document.querySelectorAll(".nav-links a").forEach((link) => {
-    const href = link.getAttribute("href");
-    if (!href?.startsWith("#")) return;
+    const id = idDeAncla(link.getAttribute("href"));
+    if (!id) return;
 
     link.addEventListener("click", (evento) => {
-      const destino = document.getElementById(href.substring(1));
+      const destino = document.getElementById(id);
       if (!destino) return;
 
       evento.preventDefault();
@@ -89,6 +111,9 @@ export function montarNavbar({
   cuentaClicable = true,
   destinoTrasLogout = null,
 } = {}) {
+  // Primero el markup: todo lo de abajo lo busca por id.
+  montarEstructura();
+
   const modal = montarModalAuth();
 
   document.getElementById("login-button")?.addEventListener("click", modal.abrir);
