@@ -61,6 +61,25 @@ describe("convención de rutas", () => {
     assert.notEqual(una, otra);
   });
 
+  // Storage NO tiene política de UPDATE, y es correcto que no la tenga:
+  // la app nunca reemplaza un archivo. Cada subida estrena un nombre
+  // aleatorio y va con upsert:false, así que siempre es un INSERT.
+  //
+  // Poner upsert:true reabriría eso de la peor forma posible: la
+  // petición se convierte en un UPDATE sobre storage.objects, RLS la
+  // deniega, y el usuario ve un fallo al subir sin ninguna pista de por
+  // qué. Si alguna vez hace falta reemplazar archivos, primero va la
+  // política a politicas.sql §11 y después este flag.
+  test("las subidas no reemplazan: sin política de UPDATE, upsert rompería", async () => {
+    await subirArchivos("company-logos", USUARIO, [archivo("logo.png")]);
+
+    assert.equal(
+      registro.subidas[0].opciones?.upsert,
+      false,
+      "upsert debe ser false mientras storage.objects no tenga política de UPDATE"
+    );
+  });
+
   test("un fallo de subida se propaga en vez de devolver una ruta falsa", async () => {
     programar("storage:residuos-fotos", { data: null, error: new Error("cuota excedida") });
 

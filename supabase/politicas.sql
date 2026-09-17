@@ -657,12 +657,49 @@ create policy "lee_publicos" on storage.objects
   for select to anon, authenticated
   using (bucket_id in ('residuos-fotos','fotos-transporte','company-logos'));
 
+-- Sin esta, urlFirmada() no puede firmar nada: createSignedUrl() exige
+-- permiso de lectura de base sobre el objeto. Con el bucket privado y
+-- sin esta política, la pantalla de documentos saldría vacía sin dar un
+-- solo error. La prueba 5 del verificador lo comprueba en los dos
+-- sentidos: que el dueño SÍ lee, y que nadie más.
 create policy "lee_privados_propios" on storage.objects
   for select to authenticated
   using (
     bucket_id in ('gestion-ambiental','docs-transporte')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+
+-- ==============================================================
+-- 11.1 Por qué NO hay política de UPDATE en storage.objects
+-- ==============================================================
+-- Son cuatro políticas y no cinco a propósito. La app nunca reemplaza
+-- un archivo: core/almacenamiento.js sube con `upsert: false` y nombra
+-- cada objeto con crypto.randomUUID(), así que dos subidas del mismo
+-- fichero nunca colisionan. Toda subida es un INSERT.
+--
+-- Una política que no cubre ninguna operación real es superficie de
+-- ataque sin contrapartida, así que no se escribe.
+--
+-- ⚠️ Si algún día hace falta reemplazar archivos —editar el logo en su
+-- sitio, versionar un documento—, el orden importa: PRIMERO la política
+-- aquí, DESPUÉS el `upsert: true`. Al revés, la petición pasa a ser un
+-- UPDATE, RLS la deniega, y el usuario ve un error de subida sin
+-- ninguna pista de la causa. `almacenamiento.test.js` fija ese flag en
+-- false para que el cambio no se cuele sin pensarlo.
+--
+-- create policy "reemplaza_en_su_carpeta" on storage.objects
+--   for update to authenticated
+--   using (
+--     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
+--                   'gestion-ambiental','docs-transporte')
+--     and (storage.foldername(name))[1] = auth.uid()::text
+--   )
+--   with check (
+--     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
+--                   'gestion-ambiental','docs-transporte')
+--     and (storage.foldername(name))[1] = auth.uid()::text
+--   );
 
 
 -- ==============================================================

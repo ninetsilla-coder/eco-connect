@@ -261,6 +261,23 @@ la de subida. Una política de `DELETE` sobre `storage.objects` sin filtro de
 `bucket_id` alcanza también a cualquier bucket que se cree en el futuro, antes
 de que a nadie le dé tiempo a escribirle una política propia.
 
+**Y el `SELECT` de los buckets privados no es opcional.** `createSignedUrl()`
+exige permiso de lectura de base sobre el objeto: sin `lee_privados_propios`, el
+dueño tampoco puede firmar, y la pantalla de documentos saldría vacía sin dar un
+solo error. Por eso la prueba 5 del verificador comprueba **las dos direcciones**
+—que el dueño sí lee y que nadie más— y no solo la denegación: una lectura rota
+para todo el mundo también deniega, y pasaría por segura.
+
+**Contrato: NO hay política de `UPDATE`, y es deliberado.** La app nunca
+reemplaza un archivo — `core/almacenamiento.js` sube con `upsert: false` y nombra
+cada objeto con un UUID, así que toda subida es un `INSERT`. Una política que no
+cubre ninguna operación real es superficie de ataque sin contrapartida.
+`almacenamiento.test.js` fija ese flag para que no cambie por descuido: con
+`upsert: true` la petición pasaría a ser un `UPDATE`, RLS la denegaría, y el
+usuario vería un fallo al subir sin ninguna pista de la causa. Si algún día hace
+falta reemplazar archivos, **primero** la política (está escrita y comentada en
+`politicas.sql` §11.1) y **después** el flag.
+
 Los buckets privados obligan al único cambio de código de este contrato:
 `getPublicUrl()` → `createSignedUrl(path, segundos)` en `gestion-ambiental.html`
 y `transporte-responsable.html`.

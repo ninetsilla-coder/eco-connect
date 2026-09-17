@@ -463,13 +463,27 @@ await comprobar("5. un documento de cumplimiento NO se lee sin permiso", async (
       token: comprador.token,
     });
 
+    // c) CONTROL POSITIVO, y no es un adorno: sin él, esta prueba
+    //    pasaría también con la lectura rota para TODO el mundo. Y eso
+    //    no seria seguridad, sería que `lee_privados_propios` no
+    //    existe — createSignedUrl() no podría firmar nada y la pantalla
+    //    de documentos saldría en blanco sin un solo error.
+    const { estado: dueno } = await api(`/storage/v1/object/gestion-ambiental/${ruta}`, {
+      token: proveedor.token,
+    });
+
     const problemas = [];
     if (anonimo === 200) problemas.push("un ANÓNIMO lo descarga por URL pública");
     if (ajeno === 200) problemas.push("otra empresa lo descarga por API");
+    if (dueno !== 200) {
+      problemas.push(
+        `su DUEÑO tampoco lo lee (HTTP ${dueno}): falta lee_privados_propios y urlFirmada() no podrá firmar`
+      );
+    }
 
     return {
       ok: problemas.length === 0,
-      detalle: problemas.length ? `${problemas.join(" y ")}; revisa §11` : null,
+      detalle: problemas.length ? `${problemas.join("; ")} — revisa §11` : null,
     };
   } finally {
     await borrar("gestion-ambiental", ruta, proveedor.token);
