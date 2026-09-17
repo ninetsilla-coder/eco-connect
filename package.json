@@ -1,0 +1,21 @@
+{
+  "name": "eco-connect",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Marketplace B2B de economia circular. Sitio estatico + Supabase + una funcion serverless.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --import ./tests/ayudas/registrar.js --test \"tests/**/*.test.js\"",
+    "test:watch": "node --import ./tests/ayudas/registrar.js --test --watch tests/",
+    "test:cobertura": "node --import ./tests/ayudas/registrar.js --test --experimental-test-coverage tests/",
+    "servir": "node --run servir:estatico",
+    "servir:estatico": "npx --yes serve@14 public",
+    "verificar:politicas": "node herramientas/verificar-politicas.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

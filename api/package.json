@@ -1,0 +1,4 @@
+{
+  "comentario": "El package.json raiz declara type:module para que Node pueda importar los modulos ES de public/js en las pruebas. Esta carpeta vuelve a CommonJS: contacto.js usa module.exports y Vercel lo ejecuta tal cual. Sin este archivo, el despliegue rompe.",
+  "type": "commonjs"
+}

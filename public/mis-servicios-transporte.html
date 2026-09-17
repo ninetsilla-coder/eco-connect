@@ -4,58 +4,16 @@
   <meta charset="UTF-8" />
   <title>Mis servicios de transporte | Eco Connect</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fuentes: Anton (títulos) y Poppins (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
- <!-- Navbar -->
-  <header class="navbar">
-    <div class="container navbar-content">
-      <div class="logo-text">
-        <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
-      </div>
-
-<!-- Botón hamburguesa (solo se verá en móvil con CSS) -->
-    <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-      ☰
-    </button>
-
-      <nav class="nav-links" id="nav-links">
-        <a href="#quienes-somos">CONÓCENOS</a>
-        <a href="#impacto">IMPACTO</a>
-
-  <!-- RESIDUOS con link + dropdown en un solo bloque -->
- <div class="nav-item dropdown" id="menu-residuos">
-  <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
-  <div class="dropdown-menu" id="dropdown-residuos">
-    <!-- Opciones para proveedor de residuos -->
-    <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
-    <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
-    <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
-
-    <!-- Opciones para logística -->
-    <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
-    <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
-    <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
- 
-    <!-- Opciones para comprador -->
-    <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
-    <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
-    <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
-
-   </div>
-</div>
-
-        <a href="#beneficios">BENEFICIOS</a>
-        <a href="#faq">FAQ</a>
-        </nav>
-
-      <div class="navbar-auth">
-        <button id="login-button" class="btn btn-primary">Login / Registrarse</button>
-        <span id="account-label" class="navbar-account" style="display: none;">Mi cuenta</span>
-        <button id="logout-button" class="btn btn-outline" style="display: none;">Cerrar sesión</button>
-      </div>
-    </div>
-  </header>
 
 
   <main class="section">
@@ -73,177 +31,9 @@
     </div>
   </main>
 
-  <footer class="footer">
-    <div class="container footer-content">
-      <p>© <span id="year"></span> Eco Connect. Tu aliado en economía circular.</p>
-    </div>
-  </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/script.js"></script>
-
-  <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    const contenedor = document.getElementById("servicios-transporte-list");
-    const statusEl = document.getElementById("status-mis-servicios");
-
-    if (!contenedor) return;
-
-    if (statusEl) {
-      statusEl.textContent = "Cargando tus servicios...";
-      statusEl.className = "form-status";
-    }
-
-    // 1) Obtener usuario logueado
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    if (sessionError || !sessionData?.session?.user) {
-      if (statusEl) {
-        statusEl.textContent = "Debes iniciar sesión para ver tus servicios.";
-        statusEl.classList.add("error");
-      }
-      return;
-    }
-    const user = sessionData.session.user;
-
-    // 2) Traer servicios de ese usuario
-    const { data: servicios, error } = await supabaseClient
-      .from("servicios_transporte")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });  // [web:585]
-
-    if (error) {
-      console.error("Error obteniendo servicios de transporte:", error);  // [web:585]
-      if (statusEl) {
-        statusEl.textContent = "Ocurrió un error al cargar tus servicios.";
-        statusEl.classList.add("error");
-      }
-      return;
-    }
-
-    if (!servicios || servicios.length === 0) {
-      contenedor.innerHTML = "<p>No has publicado servicios de transporte todavía.</p>";
-      if (statusEl) statusEl.textContent = "";
-      return;
-    }
-
-    // 3) Obtener lista de ids de servicios
-    const serviciosIds = servicios.map((s) => s.id);
-
-    // 4) Traer cumplimientos que correspondan a esos servicios
-    const { data: cumplimientos, error: cumplimientosError } = await supabaseClient
-      .from("cumplimiento_transporte")
-      .select("servicio_id")
-      .in("servicio_id", serviciosIds);  // [web:657]
-
-    if (cumplimientosError) {
-      console.error("Error obteniendo cumplimientos:", cumplimientosError);
-    }
-
-    // 5) Crear un set con los servicios que tienen docs
-    const serviciosConDocs = new Set((cumplimientos || []).map((c) => c.servicio_id));
-
-    // 6) Pintar cards
-    contenedor.innerHTML = "";
-    servicios.forEach((servicio) => {
-      const card = document.createElement("div");
-      card.className = "waste-card";
-
-      const tieneDocs = serviciosConDocs.has(servicio.id);
-
-      let imagenHtml = "";
-      if (servicio.fotos_urls && servicio.fotos_urls.length > 0) {
-        imagenHtml = `<img src="${servicio.fotos_urls[0]}" alt="Foto del vehículo" class="servicio-foto">`;
-      }
-
-      const badgeDocs = tieneDocs
-        ? '<span class="badge badge-success">Docs OK</span>'
-        : '<span class="badge badge-warning">Sin docs</span>';
-
-      card.innerHTML = `
-        ${imagenHtml}
-        <div class="service-card-header">
-          <h3 class="waste-type">${servicio.tipo_transporte}</h3>
-          ${badgeDocs}
-        </div>
-        <p><strong>Capacidad:</strong> ${servicio.capacidad_carga}</p>
-        <p><strong>Zona de cobertura:</strong> ${servicio.zona_cobertura}</p>
-        <p><strong>Residuos:</strong> ${servicio.tipos_residuos}</p>
-        <p><strong>Disponibilidad:</strong> ${servicio.disponibilidad}</p>
-        ${servicio.descripcion ? `<p>${servicio.descripcion}</p>` : ""}
-        <p><strong>Estado:</strong> <span class="estado-text" data-estado="${servicio.estado}">${servicio.estado.charAt(0).toUpperCase() + servicio.estado.slice(1)}</span></p>
-        <div class="card-actions">
-          <button class="btn btn-outline btn-sm btn-editar" data-id="${servicio.id}">Editar</button>
-          <button class="btn btn-outline btn-sm btn-estado" data-id="${servicio.id}">Cambiar estado</button>
-          <button class="btn btn-danger btn-sm btn-eliminar" data-id="${servicio.id}">Eliminar</button>
-        </div>
-      `;
-
-      contenedor.appendChild(card);
-    });
-
-    if (statusEl) statusEl.textContent = "";
-
-    // 7) Acciones: eliminar y cambiar estado
-    contenedor.addEventListener("click", async (event) => {
-      const btn = event.target;
-      const id = btn.dataset?.id;
-      if (!id) return;
-
-      // ELIMINAR
-      if (btn.classList.contains("btn-eliminar")) {
-        const confirmar = confirm("¿Eliminar este servicio?");
-        if (!confirmar) return;
-
-        const { error: deleteError } = await supabaseClient
-          .from("servicios_transporte")
-          .delete()
-          .eq("id", id);  // [web:595]
-
-        if (deleteError) {
-          console.error("Error eliminando servicio:", deleteError);
-          alert("No se pudo eliminar el servicio.");
-          return;
-        }
-
-        btn.closest(".waste-card")?.remove();
-        return;
-      }
-
-      // CAMBIAR ESTADO
-      if (btn.classList.contains("btn-estado")) {
-        const card = btn.closest(".waste-card");
-        if (!card) return;
-
-        const estadoSpan = card.querySelector(".estado-text");
-        if (!estadoSpan) return;
-
-        // 1) Leer estado actual desde data-estado (no del texto)
-        const estadoActual = estadoSpan.dataset.estado || "inactivo";
-
-        // 2) Alternar
-        const nuevoEstado = estadoActual === "activo" ? "inactivo" : "activo";
-
-        // 3) Guardar en Supabase
-        const { error: updateError } = await supabaseClient
-          .from("servicios_transporte")
-          .update({ estado: nuevoEstado })
-          .eq("id", id);
-
-        if (updateError) {
-          console.error("Error actualizando estado:", updateError);
-          alert("No se pudo actualizar el estado.");
-          return;
-        }
-
-        // 4) Actualizar data-estado y texto mostrado
-        estadoSpan.dataset.estado = nuevoEstado;
-        estadoSpan.textContent = nuevoEstado.charAt(0).toUpperCase() + nuevoEstado.slice(1);
-      }
-    });
-  });
-</script>
+  <!-- Scripts -->
+  <script type="module" src="js/pages/mis-servicios-transporte.js"></script>
 
 </body>
 </html>

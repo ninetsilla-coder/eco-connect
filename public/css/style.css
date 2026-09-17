@@ -59,7 +59,7 @@ img {
 }
 
 .logo-text {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-weight: 700;
   font-size: 1.3rem;
   letter-spacing: 0.06em;
@@ -141,7 +141,7 @@ img {
 }
 
 .hero-title {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-weight: 900;
   font-size: clamp(2.6rem, 5.4vw, 3.4rem);
   line-height: 1.05;
@@ -224,7 +224,7 @@ img {
 }
 
 .section-title {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-size: 2.5rem;
   font-weight: 850;
   margin-bottom: 0.8rem;
@@ -280,7 +280,7 @@ img {
 }
 
 .card-title {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-size: 1.2rem;
   font-weight: 850;
   margin-bottom: 0.6rem;
@@ -481,7 +481,7 @@ font-weight: 650;
 }
 
 .metric-value {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--green-main);
@@ -505,7 +505,7 @@ font-weight: 650;
 }
 
 .waste-type {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
@@ -574,7 +574,7 @@ font-weight: 650;
 }
 
 .faq-question {
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   margin-bottom: 0.4rem;
@@ -846,7 +846,7 @@ textarea:focus {
   font-size: 1.3rem;   /* más chico = se ve menos larga */
   line-height: 1.4;    /* menos interlineado */
   color: #1A1A1A;
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   font-weight: 900;
 }
 
@@ -861,7 +861,7 @@ textarea:focus {
   margin-bottom: 4rem;
   font-size: 3.5rem;
   white-space: nowrap;
-  font-family: "Cy Groteks Key", system-ui, sans-serif;
+  font-family: "Cy Grotesk Key", system-ui, sans-serif;
   text-align: center;   
           
 }

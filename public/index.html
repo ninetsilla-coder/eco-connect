@@ -14,55 +14,6 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <!-- Navbar -->
-  <header class="navbar">
-    <div class="container navbar-content">
-      <div class="logo-text">
-        <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
-      </div>
-
-<!-- Botón hamburguesa (solo se verá en móvil con CSS) -->
-    <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-      ☰
-    </button>
-
-      <nav class="nav-links" id="nav-links">
-        <a href="#quienes-somos">CONÓCENOS</a>
-        <a href="#impacto">IMPACTO</a>
-
-  <!-- RESIDUOS con link + dropdown en un solo bloque -->
- <div class="nav-item dropdown" id="menu-residuos">
-  <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
-  <div class="dropdown-menu" id="dropdown-residuos">
-    <!-- Opciones para proveedor de residuos -->
-    <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
-    <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
-    <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
-
-    <!-- Opciones para logística -->
-    <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
-    <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
-    <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
- 
-    <!-- Opciones para comprador -->
-    <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
-    <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
-    <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
-
-   </div>
-</div>
-
-        <a href="#beneficios">BENEFICIOS</a>
-        <a href="#faq">FAQ</a>
-        </nav>
-
-      <div class="navbar-auth">
-        <button id="login-button" class="btn btn-primary">Login / Registrarse</button>
-        <span id="account-label" class="navbar-account" style="display: none;">Mi cuenta</span>
-        <button id="logout-button" class="btn btn-outline" style="display: none;">Cerrar sesión</button>
-      </div>
-    </div>
-  </header>
 
   <!-- Hero -->
   <section class="hero">
@@ -408,70 +359,9 @@
   </div>
 
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-content">
-      <p>© <span id="year"></span> Eco Connect. Tu aliado en economía circular.</p>
-    </div>
-  </footer>
 
    <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/script.js"></script>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const counters = document.querySelectorAll('#impacto .metric-value');
-    let hasRun = false;
-
-    const animateCounter = (el) => {
-      const target = Number(el.getAttribute('data-target'));
-      const duration = 1500;
-      const start = 0;
-      const startTime = performance.now();
-
-      const tick = (now) => {
-        const progress = Math.min((now - startTime) / duration, 1);
-        const value = Math.floor(start + (target - start) * progress);
-        el.textContent = value.toLocaleString('es-MX');
-        if (progress < 1) requestAnimationFrame(tick);
-      };
-
-      requestAnimationFrame(tick);
-    };
-
-    const startCounters = () => {
-      if (!hasRun) {
-        counters.forEach(animateCounter);
-        hasRun = true;
-      }
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            startCounters();
-          }
-        });
-      },
-      { threshold: 0.4 }
-    );
-
-    const impactoSection = document.querySelector('#impacto');
-    if (impactoSection) observer.observe(impactoSection);
-
-    // 🔹 También al hacer click en el link de nav a #impacto
-    const impactoLink = document.querySelector('a[href="#impacto"]');
-    if (impactoLink) {
-      impactoLink.addEventListener('click', () => {
-        // retraso pequeño para dejar que el scroll ancle la sección
-        setTimeout(startCounters, 400);
-      });
-    }
-  });
-</script>
+  <script type="module" src="js/pages/index.js"></script>
 
 </body>
 </html>

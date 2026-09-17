@@ -3,6 +3,16 @@
 .env.local
 .env*.local
 
+# Misma regla sin el punto inicial: es un error facil de cometer y
+# esos patrones de arriba NO lo cubren.
+env
+env.local
+env*.local
+
+# Excepcion: la plantilla sin valores si se sube, para documentar
+# que variables hacen falta.
+!.env.example
+
 # Dependencias y archivos generados
 node_modules/
 .vercel

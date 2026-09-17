@@ -172,55 +172,6 @@
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <header class="navbar">
-    <div class="container navbar-content">
-      <div class="logo-text">
-        <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
-      </div>
-
-<!-- Botón hamburguesa (solo se verá en móvil con CSS) -->
-    <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-      ☰
-    </button>
-
-      <nav class="nav-links" id="nav-links">
-        <a href="#quienes-somos">CONÓCENOS</a>
-        <a href="#impacto">IMPACTO</a>
-
-  <!-- RESIDUOS con link + dropdown en un solo bloque -->
- <div class="nav-item dropdown" id="menu-residuos">
-  <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
-  <div class="dropdown-menu" id="dropdown-residuos">
-    <!-- Opciones para proveedor de residuos -->
-    <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
-    <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
-    <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
-
-    <!-- Opciones para logística -->
-    <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
-    <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
-    <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
- 
-    <!-- Opciones para comprador -->
-    <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
-    <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
-    <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
-
-   </div>
-</div>
-
-        <a href="#beneficios">BENEFICIOS</a>
-        <a href="#faq">FAQ</a>
-        </nav>
-
-      <div class="navbar-auth">
-        <button id="login-button" class="btn btn-primary">Login / Registrarse</button>
-        <span id="account-label" class="navbar-account" style="display: none;">Mi cuenta</span>
-        <button id="logout-button" class="btn btn-outline" style="display: none;">Cerrar sesión</button>
-      </div>
-    </div>
-  </header>
 
 
   <main>
@@ -239,7 +190,7 @@
         <p>
           Residuos tal cual salen de tu línea de producción (sin limpieza, selección ni compactado previo).
         </p>
-        <button type="button" onclick="abrirFormulario('sin-procesar')">
+        <button type="button" data-categoria="sin_procesar">
           Publicar residuo sin procesar
         </button>
       </article>
@@ -249,7 +200,7 @@
         <p>
           Material que ya pasó por procesos de limpieza, selección o compactado y está listo para reutilizarse.
         </p>
-        <button type="button" onclick="abrirFormulario('procesado')">
+        <button type="button" data-categoria="procesado">
           Publicar residuo procesado y limpio
         </button>
       </article>
@@ -339,7 +290,7 @@
           </div>
 
           <div class="form-actions">
-            <button type="button" class="btn-secondary" onclick="cerrarFormulario()">
+            <button type="button" class="btn-secondary" data-cerrar-formulario>
               Cancelar
             </button>
             <button type="submit" class="btn-primary">
@@ -351,170 +302,8 @@
     </section>
   </main>
 
-    <!-- Scripts globales -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/script.js"></script>
-
-  <!-- Script específico de esta página -->
-  <script>
-    let categoriaSeleccionada = null;
-
-    function abrirFormulario(tipo) {
-      const formSection = document.getElementById("form-residuo");
-      const formTitle = document.getElementById("form-title");
-      const formSubtitle = document.getElementById("form-subtitle");
-
-      categoriaSeleccionada = tipo === "sin-procesar" ? "sin_procesar" : "procesado";
-
-      if (tipo === "sin-procesar") {
-        formTitle.textContent = "Publicar residuo sin procesar";
-        formSubtitle.textContent =
-          "Describe el residuo tal como sale de tu proceso (antes de limpieza, selección o compactado).";
-      } else if (tipo === "procesado") {
-        formTitle.textContent = "Publicar residuo procesado y limpio";
-        formSubtitle.textContent =
-          "Describe el material ya procesado para que los recicladores entiendan en qué estado lo recibirán.";
-      } else {
-        formTitle.textContent = "Publicar residuo";
-        formSubtitle.textContent =
-          "Completa los datos del residuo para que los recicladores puedan evaluar la oportunidad.";
-      }
-
-      formSection.style.display = "block";
-      formSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    function cerrarFormulario() {
-      const formSection = document.getElementById("form-residuo");
-      formSection.style.display = "none";
-    }
-
-    // Manejo de submit: guardar en Supabase
-    document.addEventListener("DOMContentLoaded", () => {
-      const formPublicar = document.getElementById("form-publicar-residuo");
-      if (!formPublicar) return;
-
-      const formStatus = document.createElement("p");
-      formStatus.className = "form-status";
-      formStatus.style.marginTop = "8px";
-      formPublicar.parentElement.appendChild(formStatus);
-
-      formPublicar.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  formStatus.textContent = "Guardando residuo...";
-  formStatus.className = "form-status";
-
-  const tipo = document.getElementById("tipo").value.trim();
-  const cantidad = document.getElementById("cantidad").value.trim();
-  const ubicacion = document.getElementById("ubicacion").value.trim();
-  const frecuencia = document.getElementById("frecuencia").value;
-  const estadoResiduo = document.getElementById("estado-residuo").value;
-  const descripcion = document.getElementById("descripcion").value.trim();
-  const files = document.getElementById("fotos").files;
-
-  try {
-    // 1) Usuario actual
-    const { data: userData, error: userError } =
-      await supabaseClient.auth.getUser();
-    if (userError || !userData.user) {
-      formStatus.textContent =
-        "Debes iniciar sesión para publicar un residuo.";
-      formStatus.classList.add("error");
-      return;
-    }
-
-    const user = userData.user;
-
-    // 2) Perfil para company_id
-    const { data: profile, error: profileError } = await supabaseClient
-      .from("profiles")
-      .select("id")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError) {
-      console.error("Error obteniendo perfil:", profileError);
-      formStatus.textContent = "No se pudo obtener tu perfil de empresa.";
-      formStatus.classList.add("error");
-      return;
-    }
-
-    // 3) Subir fotos a Storage (si hay)
-    const fotosPaths = [];
-
-    if (files && files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // Ruta única: userId/uuid-nombre-original
-        const uniqueName = `${user.id}/${Date.now()}-${i}-${file.name}`;
-
-        const { data: uploadData, error: uploadError } =
-          await supabaseClient.storage
-            .from("residuos-fotos") // nombre del bucket
-            .upload(uniqueName, file);
-
-        if (uploadError) {
-          console.error("Error subiendo archivo:", uploadError);
-          formStatus.textContent =
-            "Ocurrió un error al subir las fotos. Intenta de nuevo.";
-          formStatus.classList.add("error");
-          return;
-        }
-
-        // URL pública de la imagen
-        const {
-          data: { publicUrl },
-        } = supabaseClient.storage
-          .from("residuos-fotos")
-          .getPublicUrl(uploadData.path);
-
-        fotosPaths.push(publicUrl);
-      }
-    }
-
-    // 4) Insertar en residuos_publicados con URLs de fotos
-    const { data: insertData, error: insertError } = await supabaseClient
-      .from("residuos_publicados")
-      .insert({
-        user_id: user.id,
-        company_id: profile.id,
-        tipo: tipo || null,
-        categoria: categoriaSeleccionada, // sin_procesar o procesado
-        cantidad: cantidad || null,
-        ubicacion: ubicacion || null,
-        frecuencia: frecuencia || null,
-        estado_residuo: estadoResiduo || null,
-        descripcion: descripcion || null,
-        fotos: fotosPaths.length > 0 ? fotosPaths : null, // JSON array de URLs
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("Error insertando residuo:", insertError);
-      formStatus.textContent =
-        "Ocurrió un error al guardar el residuo. Intenta de nuevo.";
-      formStatus.classList.add("error");
-      return;
-    }
-
-    console.log("Residuo guardado:", insertData);
-    formStatus.textContent = "Residuo publicado correctamente.";
-    formStatus.classList.add("success");
-    formPublicar.reset();
-  } catch (err) {
-    console.error(err);
-    formStatus.textContent =
-      "Ocurrió un error inesperado. Intenta más tarde.";
-    formStatus.classList.add("error");
-  }
-});
-
-    });
-  </script>
+  <!-- Scripts -->
+  <script type="module" src="js/pages/publicar-residuos.js"></script>
 
 </body>
 </html>
