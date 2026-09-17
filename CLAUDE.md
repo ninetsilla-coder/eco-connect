@@ -36,6 +36,30 @@ TypeScript, y el sitio se sigue sirviendo tal cual se escribe.
 **No introducir dependencias de ejecución, bundler ni build step** sin que el
 usuario lo pida explícitamente.
 
+### 1.1 Estabilidad de dependencias
+
+Sin bundler ni linter, nada avisa de un import mal escrito ni de una versión que
+flota: el fallo aparece en el navegador de un usuario, meses después. Por eso el
+grafo de dependencias —externo e interno— está fijado en
+`tests/dependencias.test.js` y se verifica con `npm test`.
+
+| Dependencia | Cómo se fija | Por qué |
+|---|---|---|
+| `@supabase/supabase-js` | versión **exacta** (`@2.39.7`) en la URL de esm.sh | con `@2`, una publicación ajena rompe el sitio sin que nadie toque el repo |
+| CDN | solo `esm.sh` | `ayudas/cargador.js` intercepta ese prefijo; cambiarlo rompe las pruebas |
+| Google Fonts | una sola hoja, **idéntica en las 13 páginas** | subconjuntos distintos = páginas que se ven distintas |
+| `jsdom` | versión exacta + `package-lock.json` commiteado | usar `npm ci`, no `npm install` |
+| `serve` (solo dev) | `serve@14` en `npm run servir` | `npx serve` a secas descarga el último mayor |
+| Node | `engines: >=22` | las pruebas usan `readdirSync(recursive)` y `parentPath` |
+| Resend | `AbortSignal.timeout(8000)` | un tercero colgado no debe agotar la función de Vercel |
+
+**Subir cualquiera de estas versiones es un commit deliberado**, nunca un efecto
+secundario. La prueba obliga a que así sea.
+
+Fuentes: toda familia de `style.css` debe estar servida por la hoja de Google
+Fonts, ser del sistema, o figurar en la lista `SIN_PROVEEDOR` de la prueba con su
+motivo. Hoy solo `"Cy Grotesk Key"` está ahí (ver §7).
+
 ## 2. Comandos y entorno local
 
 ```bash
@@ -46,6 +70,32 @@ npm run servir        # sirve public/ por HTTP
 ```
 
 No hay build ni linter. **No inventarlos ni reportar que se ejecutaron.**
+
+### Verificar las políticas RLS contra el proyecto real
+
+```bash
+npm run verificar:politicas
+```
+
+Ejecuta las pruebas de aceptación de [CONTRATO-RLS.md](CONTRATO-RLS.md) §5
+intentando de verdad lo que debe fallar. **No** forma parte de `npm test` y no
+debe estarlo: necesita red y credenciales, justo lo que §5.4.4 prohíbe a una
+prueba unitaria. Por eso vive en `herramientas/`, fuera del glob.
+
+Necesita dos cuentas ya registradas, en variables de entorno:
+
+```powershell
+$env:ECO_PROVEEDOR_EMAIL="..."; $env:ECO_PROVEEDOR_PASSWORD="..."
+$env:ECO_COMPRADOR_EMAIL="..."; $env:ECO_COMPRADOR_PASSWORD="..."
+```
+
+Empieza por dos **controles positivos**, y el orden es deliberado: las
+pruebas confirman que algo *no* se puede hacer, así que todas pasarían solas si
+la conexión estuviera rota. Sin esos controles, un proyecto caído las daría
+todas en verde, en falso.
+
+Cero dependencias: habla por HTTP con PostgREST y GoTrue usando el `fetch` de
+Node, no con `@supabase/supabase-js`.
 
 **Node 24.19.0 y npm 11.17.0** instalados el 2026-09-03 vía winget en ámbito de
 usuario (sin admin), en
@@ -72,9 +122,9 @@ de Vercel; `.env.local` es solo para `vercel dev` si algún día se instala.
 | `comprador` | `comprador-explorar-residuos`, `comprador-mis-intereses`, `comprador-servicios-transporte` (+ las dos de detalle) |
 | `logistica` | `publicar-servicio-transporte`, `mis-servicios-transporte`, `transporte-responsable` |
 
-`js/script.js` lo aplica en dos sitios: los "paths" del home (`script.js:35`) y
-los links del dropdown (`script.js:82`). Ambos consultan `profiles` por separado,
-y se repiten enteros en cada `onAuthStateChange`.
+Los links del dropdown se declaran una sola vez, en `ui/estructura.js`, marcados
+con `data-role`. `ui/navbar.js` muestra los del rol activo y oculta el resto, con
+el rol que `core/sesion.js` resolvió una única vez.
 
 > ⚠️ **Este gating es solo visual.** `company_type` nunca se comprueba antes de
 > un `insert`/`update`/`delete`. La separación real de roles depende
@@ -89,11 +139,13 @@ carga. La conexión se importa desde `js/core/supabase.js`.
 La llave que contiene es la *publishable* (pública por diseño); lo que protege
 los datos son las políticas RLS.
 
-### Tablas (8)
+### Tablas (9)
 
 `profiles`, `residuos_publicados`, `intereses`, `servicios_transporte`,
 `residuos_gestion_ambiental`, `cumplimiento_transporte`,
 `transporte_documentacion` (aparece una sola vez, posiblemente en desuso),
+`residuos_transporte_doc` (**sellada**: existe en la base, no la usa nadie —
+decisión de conservarla en `politicas.sql` §9.1),
 `empresas_registro`.
 
 Columna de propiedad: `user_id` en todas, salvo `profiles`, donde es `id`.
@@ -128,7 +180,8 @@ public/js/
   core/supabase.js       cliente, version fijada
   core/sesion.js         sesión + perfil, resueltos UNA vez
   core/almacenamiento.js subidas a Storage y URLs firmadas
-  ui/navbar.js           navbar, dropdown por rol, hamburguesa, footer
+  ui/estructura.js       markup de la cabecera y el pie (el QUÉ se pinta)
+  ui/navbar.js           comportamiento de esa estructura (el CÓMO)
   ui/auth-modal.js       modal de login/registro (se inyecta donde falte)
   ui/residuo-card.js     tarjeta de residuo compartida
   ui/detalle.js          bloques de las páginas de detalle
@@ -139,6 +192,36 @@ public/js/
 Supabase se importa desde esm.sh con **versión exacta** (`@2.39.7`). Con `@2`
 flotante, un cambio upstream rompe el sitio sin que nadie toque el repo. Subirla
 es una decisión deliberada.
+
+### 4.1.1 La cabecera y el pie viven en un solo sitio
+
+El `<header>` y el `<footer>` estaban copiados en los 13 HTML. Ahora los HTML
+empiezan directamente por su `<main>`: `montarNavbar()` inyecta ambos.
+
+El reparto es **markup / comportamiento**:
+
+| Archivo | Responsabilidad |
+|---|---|
+| `ui/estructura.js` | `HEADER`, `FOOTER` y `montarEstructura()`. Qué se pinta. |
+| `ui/navbar.js` | login, logout, rol, hamburguesa, año, scroll. Cómo se comporta. |
+
+La junta entre ambos son los identificadores de `IDS`, exportado por
+`estructura.js` y documentado ahí. `estructura.test.js` compara esa lista con
+los `getElementById` que `navbar.js` ejecuta de verdad, **en los dos sentidos**:
+un id renombrado en un archivo y no en el otro rompería el cableado sin lanzar
+ningún error, así que lo dice la prueba.
+
+`montarEstructura()` es idempotente: respeta un header ya presente en el HTML.
+
+> ⚠️ Las plantillas se insertan con `insertAdjacentHTML`. Eso es seguro **solo**
+> porque son literales fijos sin una sola interpolación — §4.4 prohíbe meter
+> datos en HTML, no escribir HTML estático. Hay una prueba que falla si alguien
+> introduce una interpolación en ellas. Un valor variable se pinta con
+> `textContent` **después** de insertarlas.
+
+**Consecuencia nueva:** una página que no llame a `montarNavbar()` se queda sin
+cabecera y sin pie. Antes el HTML la traía puesta, así que olvidarlo no se
+notaba. Hay una prueba que lo exige en las 13.
 
 ### 4.2 Una capa de datos por tabla
 
@@ -222,13 +305,19 @@ Por orden de valor:
    correcto: filtro de propiedad presente, columna correcta según el tipo,
    `company_type` nunca en el payload de `profiles`.
 4. **Lógica pura**: agrupaciones, etiquetas, mapeos.
+5. **El grafo de dependencias** (`dependencias.test.js`). Es el caso extremo del
+   punto 1: fija §1.1 (versiones exactas, CDN y fuentes) y §4.1 (qué capa puede
+   importar de cuál, sin ciclos ni huérfanos). Ocupa el hueco que en otros
+   proyectos llenan el linter y el bundler, que aquí no existen.
 
 ### 5.3 Qué NO se prueba
 
 - **Supabase, el navegador o jsdom.** No son código nuestro.
-- **Las políticas RLS.** No se pueden probar desde aquí: viven en Postgres. Su
-  verificación son las pruebas de aceptación de [CONTRATO-RLS.md](CONTRATO-RLS.md) §5,
-  hechas a mano con dos cuentas de rol distinto.
+- **Las políticas RLS.** No se pueden probar desde aquí: viven en Postgres, y una
+  prueba que necesite red o credenciales está mal planteada (§5.4.4). Para eso
+  está `npm run verificar:politicas`, una herramienta aparte —fuera de `tests/`
+  para que el glob no la recoja— que intenta de verdad contra el proyecto real
+  las cinco operaciones que deben fallar. Ver §2.
 - **`pages/*.js`.** Son pegamento entre el DOM y `data/`. Si una página necesita
   lógica que merece prueba, esa lógica está en el sitio equivocado: va a `data/`
   o a `ui/`.
@@ -287,18 +376,39 @@ Corregidos en la migración:
 - **Badges de documentación congelados** en `comprador-servicios-transporte`:
   solo se calculaban al cargar, así que al filtrar se quedaban en "Cargando...".
 - **Consulta duplicada a `profiles`** en cada carga y en cada evento de auth.
+- **Anclajes del menú rotos en 12 páginas.** El header copiado escribía
+  `href="#quienes-somos"`, que solo resuelve dentro de `index.html`. En las otras
+  once, CONÓCENOS / IMPACTO / BENEFICIOS / FAQ no hacían nada. Solo
+  `profile.html` los tenía bien (`index.html#quienes-somos`), y esa es la versión
+  que quedó en `ui/estructura.js`. `montarScrollSuave()` acepta ahora las dos
+  formas, para que el scroll del home siga funcionando.
+- **Ocho páginas sin footer.** `montarAnioFooter()` buscaba un `#year` que allí
+  no existía. Ahora el pie lo inyecta `ui/estructura.js` en las 13.
+- **El link CONTACTO existía en una sola página**, `profile.html`.
+- **El rol `logistica` veía otra tipografía.** Sus tres páginas
+  (`mis-servicios-transporte`, `publicar-servicio-transporte`,
+  `transporte-responsable`) no cargaban el `<link>` de Google Fonts, así que todo
+  su texto caía a `system-ui` mientras el resto del sitio usaba Poppins. Lo
+  detectó `dependencias.test.js` al exigir una sola hoja de fuentes en las 13
+  páginas; no estaba en ninguna auditoría previa.
 
 Pendientes:
 
-- **Las políticas de `supabase/politicas.sql` no están aplicadas.** Hasta que se
-  ejecuten, los `.eq("user_id")` del cliente son lo único que separa a un usuario
-  de los datos de otro — y eso no protege nada. Es la prioridad 1.
-- **Buckets de cumplimiento aún públicos.** El código ya guarda rutas y sabe
-  firmar URLs; falta descomentar la sección 11 de `politicas.sql`. Ojo: las filas
-  antiguas guardan URLs completas — `referenciar()` maneja ambas formas.
-- **Fuente inexistente en CSS.** `style.css` referencia `"Cy Grotesk Key"`, que
-  no se carga desde ningún sitio, y con dos grafías distintas
-  (`"Cy Groteks Key"` en `style.css:62`). Cae al fallback `system-ui`.
+- **Una prueba de aceptación sin cubrir.** El 2026-09-17 el verificador dio 9
+  pasan / 0 fallan, pero la **2** quedó saltada y *saltada no es pasada*: no hay
+  ningún residuo publicado desde una segunda cuenta `proveedor`, así que no tuvo
+  datos ajenos que intentar borrar. C1 —propiedad en escrituras destructivas— es
+  la única cláusula que sigue sin demostrar.
+- **`urlsDeDocumentos()` es código muerto.** Existe en `data/cumplimiento.js` y no
+  la llama ninguna página: los documentos de cumplimiento se suben y no se
+  muestran en ningún sitio. Ahora que los buckets son privados, la pantalla que
+  acabe mostrándolos **tiene** que usarla — una URL pública ya no resuelve.
+- **Fuente inexistente en CSS.** `style.css` referencia `"Cy Grotesk Key"` en 12
+  reglas y no la sirve nadie: es comercial y no está en Google Fonts, así que
+  cae al fallback `system-ui`. La errata de grafía (`"Cy Groteks Key"`, 9 reglas)
+  ya está unificada, y la familia figura en la lista `SIN_PROVEEDOR` de
+  `dependencias.test.js`: al alojarla en `public/` o sustituirla, quitarla de esa
+  lista y la prueba dirá si queda alguna regla suelta.
 - **`empresas_registro` sin límite de tasa**: el formulario es spameable.
 - **Botón "Editar" sin función** en `mis-residuos` y `mis-servicios-transporte`.
 - **`transporte_documentacion`**: solo se lee, nadie escribe en ella. Decidir si

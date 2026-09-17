@@ -14,10 +14,64 @@
 
 
 -- ==============================================================
+-- 0. Las 9 tablas existen y se llaman como creemos
+-- ==============================================================
+-- Los nombres se dedujeron de los select/insert del cliente, así que
+-- pueden no coincidir con el esquema real. Sin esta comprobación, un
+-- nombre equivocado aborta el script en mitad del `alter table` de
+-- abajo con un error de una sola línea, y quedan tablas sin RLS y sin
+-- que nadie se entere. Esto lo dice todo junto y antes de tocar nada.
+--
+-- Son 9 en dos categorías, y la diferencia importa:
+--
+--   DEL CONTRATO (8)  llevan políticas más abajo; la app las usa.
+--   SELLADAS (1)      RLS activo y CERO políticas, a propósito. Ver §9.1.
+
+do $$
+declare
+  del_contrato text[] := array[
+    'profiles',
+    'residuos_publicados',
+    'intereses',
+    'servicios_transporte',
+    'residuos_gestion_ambiental',
+    'cumplimiento_transporte',
+    'transporte_documentacion',
+    'empresas_registro'
+  ];
+  selladas text[] := array[
+    'residuos_transporte_doc'
+  ];
+  faltan text[];
+begin
+  select array_agg(t order by t) into faltan
+  from unnest(del_contrato || selladas) as t
+  where to_regclass('public.' || quote_ident(t)) is null;
+
+  if faltan is not null then
+    raise exception
+      'No existen estas tablas en public: %. Corrige los nombres en este script (y en CONTRATO-RLS.md) antes de seguir; no se ha aplicado nada.',
+      array_to_string(faltan, ', ');
+  end if;
+end $$;
+
+
+-- ==============================================================
 -- 1. Activar RLS  (Prioridad 1)
 -- ==============================================================
 -- Sin esto, todo lo demás es decorativo: la llave publishable es
 -- pública, así que una tabla sin RLS está abierta a cualquiera.
+--
+-- Explícito y para las 9, sin dar por hecho que alguna ya lo tenía:
+-- `enable row level security` es idempotente, así que repetirlo sobre
+-- una tabla que ya lo tiene activo no cuesta nada ni da error.
+--
+-- Nota sobre quién NO queda sujeto a esto: el dueño de la tabla y los
+-- roles con el atributo `bypassrls` —en Supabase, `service_role`—
+-- siguen viéndolo todo. Es deliberado: esa llave es secreta y solo se
+-- usa desde el servidor. Los roles del navegador (`anon` y
+-- `authenticated`) no son dueños de nada, así que para ellos `enable`
+-- basta y no hace falta `force row level security`.
 
 alter table public.profiles                   enable row level security;
 alter table public.residuos_publicados        enable row level security;
@@ -27,6 +81,185 @@ alter table public.residuos_gestion_ambiental enable row level security;
 alter table public.cumplimiento_transporte    enable row level security;
 alter table public.transporte_documentacion   enable row level security;
 alter table public.empresas_registro          enable row level security;
+
+-- Sellada a propósito (§9.1). Ya tenía RLS activo antes de este
+-- script; se repite aquí para que su protección deje de depender de
+-- que alguien la activara una vez a mano.
+alter table public.residuos_transporte_doc    enable row level security;
+
+
+-- ==============================================================
+-- 1.1 Confirmar que quedó activo, antes de crear ninguna política
+-- ==============================================================
+-- No basta con haber ejecutado el `alter`: aquí se lee el catálogo y
+-- se aborta si alguna de las 9 sigue sin RLS. La verificación de §12
+-- llega al final, cuando ya se habrían aplicado las 300 líneas
+-- restantes sobre tablas abiertas.
+
+do $$
+declare
+  esperadas text[] := array[
+    'profiles',
+    'residuos_publicados',
+    'intereses',
+    'servicios_transporte',
+    'residuos_gestion_ambiental',
+    'cumplimiento_transporte',
+    'transporte_documentacion',
+    'empresas_registro',
+    'residuos_transporte_doc'
+  ];
+  abiertas text[];
+begin
+  select array_agg(c.relname::text order by c.relname) into abiertas
+  from pg_class c
+  where c.relnamespace = 'public'::regnamespace
+    and c.relkind = 'r'
+    and c.relname = any(esperadas)
+    and not c.relrowsecurity;
+
+  if abiertas is not null then
+    raise exception
+      'RLS sigue desactivado en: %. No se crean políticas sobre tablas abiertas.',
+      array_to_string(abiertas, ', ');
+  end if;
+
+  raise notice 'RLS activo en las % tablas cubiertas.', array_length(esperadas, 1);
+end $$;
+
+
+-- ==============================================================
+-- 1.2 ¿Hay alguna tabla que este script no cubre?
+-- ==============================================================
+-- Las 9 de arriba son las que hay hoy. Toda tabla fuera de esa lista
+-- es una decisión que nadie ha tomado:
+--
+--   · sin RLS  -> abierta a cualquiera con la llave publishable;
+--   · con RLS y sin política -> sellada, y si la app la usa, se queda
+--     en blanco sin dar ningún error.
+--
+-- La primera versión de esta comprobación solo miraba las tablas SIN
+-- RLS, así que el segundo caso se le escapaba: `residuos_transporte_doc`
+-- pasó por aquí sin decir nada y solo apareció en el diagnóstico de
+-- §12.1, al final del script. Ahora se reporta toda tabla ajena a la
+-- lista, en el estado que sea.
+--
+-- Avisa en vez de abortar: puede ser una tabla legítima que aún no se
+-- ha contemplado. Pero si aparece algo aquí, va a CONTRATO-RLS.md
+-- antes de dar el despliegue por terminado.
+
+do $$
+declare
+  cubiertas text[] := array[
+    'profiles',
+    'residuos_publicados',
+    'intereses',
+    'servicios_transporte',
+    'residuos_gestion_ambiental',
+    'cumplimiento_transporte',
+    'transporte_documentacion',
+    'empresas_registro',
+    'residuos_transporte_doc'
+  ];
+  huerfanas text[];
+begin
+  select array_agg(
+           c.relname::text ||
+           case
+             when not c.relrowsecurity then ' (SIN RLS: abierta)'
+             when not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public' and p.tablename = c.relname
+             ) then ' (RLS sin politicas: sellada)'
+             else ' (con politicas ajenas a este script)'
+           end
+           order by c.relname
+         ) into huerfanas
+  from pg_class c
+  where c.relnamespace = 'public'::regnamespace
+    and c.relkind = 'r'
+    and c.relname <> all(cubiertas);
+
+  if huerfanas is not null then
+    raise warning
+      'Tablas en public que este script NO cubre: %. Decide qué hacer con ellas y anotalo en CONTRATO-RLS.md.',
+      array_to_string(huerfanas, ', ');
+  end if;
+end $$;
+
+
+-- ==============================================================
+-- 1.3 Borrar TODA política anterior sobre estas tablas
+-- ==============================================================
+-- Esta sección existe por un fallo real, encontrado el 2026-09-17 por
+-- las pruebas de aceptación. Merece la pena entenderlo entero.
+--
+-- El script creaba sus políticas precedidas de `drop policy if exists`
+-- con LOS NOMBRES QUE ÉL MISMO USA. Parecía suficiente y no lo era:
+-- el proyecto tenía además políticas creadas a mano desde el panel de
+-- Supabase, con otros nombres, que el script nunca tocaba.
+--
+-- Y en Postgres varias políticas PERMISIVAS se combinan con OR. Basta
+-- que UNA permita para que la operación pase, por muy estricta que sea
+-- la de al lado. Sobre residuos_publicados convivían:
+--
+--   residuos_inserta                   with check (... mi_rol()='proveedor')
+--   insert_residuos_any_authenticated  with check (true)
+--
+-- La segunda anulaba por completo a la primera. Un comprador podía
+-- publicar residuos, que es justo lo que C4 existe para impedir. Había
+-- siete agujeros así repartidos por cinco tablas.
+--
+-- Lo peor es que NADA lo delataba: la política correcta existía y
+-- estaba bien escrita, así que el diagnóstico de §12.1 —que lee el
+-- catálogo— daba todo por bueno. Solo apareció al intentar de verdad
+-- la operación que debía fallar (`npm run verificar:politicas`).
+--
+-- Por eso ahora se borra todo y se reconstruye: este archivo pasa a
+-- ser la ÚNICA fuente de verdad de las políticas de estas tablas. Si
+-- una política no está escrita aquí, no existe.
+--
+-- ⚠️ CONSECUENCIA: cualquier política que alguien añada desde el panel
+-- desaparecerá la próxima vez que se corra esto. Es deliberado. Lo que
+-- haga falta se añade a este archivo, se comenta y se versiona.
+--
+-- ⚠️ SI EL SCRIPT FALLA A PARTIR DE AQUÍ, las tablas quedan con RLS y
+-- sin políticas: selladas. La app dejaría de leer datos. No es un
+-- estado peligroso —falla cerrado, no abierto— pero hay que volver a
+-- correr el script entero para salir de él.
+
+do $$
+declare
+  gestionadas text[] := array[
+    'profiles',
+    'residuos_publicados',
+    'intereses',
+    'servicios_transporte',
+    'residuos_gestion_ambiental',
+    'cumplimiento_transporte',
+    'transporte_documentacion',
+    'empresas_registro',
+    'residuos_transporte_doc'
+  ];
+  politica record;
+  borradas int := 0;
+begin
+  for politica in
+    select tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = any(gestionadas)
+  loop
+    execute format(
+      'drop policy %I on public.%I',
+      politica.policyname,
+      politica.tablename
+    );
+    borradas := borradas + 1;
+  end loop;
+
+  raise notice 'Políticas anteriores borradas: %. Se recrean abajo.', borradas;
+end $$;
 
 
 -- ==============================================================
@@ -287,6 +520,36 @@ create policy "documentacion_lectura" on public.transporte_documentacion
 
 
 -- ==============================================================
+-- 9.1 residuos_transporte_doc   — SELLADA A PROPÓSITO
+-- ==============================================================
+-- Tabla que existe en la base pero que NO aparece en ninguna parte del
+-- código: ni en public/js, ni en los HTML, ni en la documentación.
+-- Todo apunta a que es un nombre anterior de transporte_documentacion
+-- (§9), que sí se usa, y que quedó abandonado durante el desarrollo.
+--
+-- DECISIÓN: se conserva, no se borra.
+--
+-- Y al conservarla, el estado correcto es el que ya tenía: RLS activo
+-- y CERO políticas. Eso la deja sellada — nadie la lee ni la escribe
+-- desde el navegador. Para una tabla sin uso, sellada es lo más seguro
+-- que puede estar; lo peligroso sería lo contrario.
+--
+-- Por eso aquí NO se crea ninguna política. La ausencia es el
+-- contenido de esta sección, y está escrita para que se lea como una
+-- decisión y no como un olvido.
+--
+-- Si algún día la app pasa a usarla, hará falta:
+--   1. una columna de propiedad (hoy no se le conoce ninguna),
+--   2. sus políticas, siguiendo el patrón de §5 a §8,
+--   3. sacarla de la lista `selladas` de §0 y de la excepción de §12.1.
+--
+-- Mientras tanto, §12.1 la excluye de 'RLS SIN NINGUNA POLITICA' — no
+-- para esconderla, sino para que ese diagnóstico siga significando
+-- "cada fila es un problema". Una excepción declarada en un sitio vale
+-- más que un aviso que se aprende a ignorar.
+
+
+-- ==============================================================
 -- 10. empresas_registro         (formulario de contacto, sin login)
 -- ==============================================================
 -- Insert anónimo por diseño. NO se crea política de select: con RLS
@@ -305,26 +568,70 @@ create policy "lead_anonimo" on public.empresas_registro
 -- Los 5 buckets ya suben con prefijo ${user.id}/ — esa convención es
 -- lo que hace posible todo lo de abajo. No romperla.
 
--- ⚠️ NO EJECUTAR TODAVÍA — bloqueado a propósito.
+-- Los dos buckets de cumplimiento guardan permisos y licencias, no
+-- fotos de catálogo. Privados: es el punto 6 de CONTRATO-RLS.md §1.
 --
--- Volver privados los buckets de cumplimiento rompe los documentos YA
--- subidos: las filas existentes guardan URLs públicas completas, y
--- gestion-ambiental.html y transporte-responsable.html siguen usando
--- getPublicUrl(). Al pasarlos a privados, esas URLs dejan de resolver.
+-- Esta línea estuvo bloqueada a propósito mientras
+-- gestion-ambiental.html y transporte-responsable.html usaban
+-- getPublicUrl(): al volver privado el bucket, esas URLs dejan de
+-- resolver y los documentos ya subidos se pierden de vista.
 --
--- Descomentar SOLO cuando esas dos páginas estén migradas a
--- js/data/cumplimiento.js y usen urlFirmada(). Es el punto 6 de la
--- prioridad de CONTRATO-RLS.md.
+-- Ese bloqueo ya no aplica. La migración movió las dos páginas a
+-- js/data/cumplimiento.js, que guarda RUTAS en vez de URLs, y
+-- referenciar() firma tanto las rutas nuevas como las URLs completas
+-- que quedaron en las filas antiguas. Ninguna página llama ya a
+-- getPublicUrl().
 --
--- update storage.buckets set public = false where id in ('gestion-ambiental', 'docs-transporte');
+-- ⚠️ Lo que sí sigue siendo cierto: urlsDeDocumentos() existe en
+-- data/cumplimiento.js pero NINGUNA página la llama todavía. Hoy los
+-- documentos se suben y no se muestran en ningún sitio, así que este
+-- cambio no rompe nada visible. La pantalla que acabe mostrándolos
+-- tiene que usar esa función desde el primer día: con los buckets ya
+-- privados, una URL pública no funcionaría y el fallo sería inmediato
+-- en vez de silencioso.
+
+update storage.buckets set public = false where id in ('gestion-ambiental', 'docs-transporte');
 
 update storage.buckets set public = true where id in ('residuos-fotos', 'fotos-transporte', 'company-logos');
 
-drop policy if exists "sube_en_su_carpeta"   on storage.objects;
-drop policy if exists "borra_en_su_carpeta"  on storage.objects;
-drop policy if exists "lee_privados_propios" on storage.objects;
-drop policy if exists "lee_publicos"         on storage.objects;
+-- Igual que §1.3, y por el mismo motivo: borrar solo los cuatro
+-- nombres propios no basta. El 2026-09-17 se encontraron aquí OCHO
+-- políticas heredadas del panel, cinco de ellas agujeros:
+--
+--   read_docs_transporte      select to public using (bucket_id='docs-transporte')
+--
+-- Esa daba a CUALQUIERA, anónimos incluidos, la documentación
+-- regulatoria de todas las empresas. Y no la habría cerrado volver el
+-- bucket privado: el flag `public` del bucket gobierna la URL directa,
+-- pero la lectura por API la decide esta política.
+--
+-- Las otras cuatro permitían subir a un bucket sin comprobar
+-- `foldername[1] = auth.uid()`, es decir, escribir en la carpeta de
+-- otra empresa. Esa convención es el único cimiento de la separación
+-- per-usuario en Storage (CLAUDE.md §3).
+--
+-- Se borran TODAS y se recrean las cuatro de abajo, que cubren los
+-- cinco buckets. Lo que no esté escrito aquí, no existe.
+do $$
+declare
+  politica record;
+  borradas int := 0;
+begin
+  for politica in
+    select policyname from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+  loop
+    execute format('drop policy %I on storage.objects', politica.policyname);
+    borradas := borradas + 1;
+  end loop;
 
+  raise notice 'Políticas de storage.objects borradas: %. Se recrean abajo.', borradas;
+end $$;
+
+-- Una sola política con `in (...)` en vez de cinco casi idénticas: el
+-- efecto es el mismo y hay un objeto que revisar, no cinco que puedan
+-- divergir. El criterio es el de CONTRATO-RLS.md C6, igual para los
+-- cinco buckets: el primer segmento de la ruta es el id de quien sube.
 create policy "sube_en_su_carpeta" on storage.objects
   for insert to authenticated
   with check (
@@ -333,9 +640,18 @@ create policy "sube_en_su_carpeta" on storage.objects
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- Misma lista de buckets que la de subida, y no por simetría estética:
+-- sin el filtro de bucket_id esta política alcanza CUALQUIER bucket de
+-- storage.objects, incluido uno que se cree mañana. Ese bucket nuevo
+-- nacería con borrado abierto a todo usuario autenticado sobre su
+-- propia carpeta, antes de que nadie le escriba una política pensada.
 create policy "borra_en_su_carpeta" on storage.objects
   for delete to authenticated
-  using ((storage.foldername(name))[1] = auth.uid()::text);
+  using (
+    bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
+                  'gestion-ambiental','docs-transporte')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "lee_publicos" on storage.objects
   for select to anon, authenticated
@@ -352,15 +668,76 @@ create policy "lee_privados_propios" on storage.objects
 -- ==============================================================
 -- 12. Verificación
 -- ==============================================================
--- Cualquier rls_activo = false es una tabla completamente abierta.
+-- ⚠️ El SQL Editor de Supabase muestra el resultado de la ÚLTIMA
+-- consulta, y no siempre enseña los mensajes de `raise notice` ni
+-- `raise warning`. Por eso el diagnóstico es UNA sola consulta que
+-- devuelve FILAS: lo que no se ve, no sirve de nada.
+--
+-- Para leer los listados detallados del final, selecciónalos con el
+-- ratón y pulsa Run: el editor ejecuta solo lo seleccionado.
 
-select relname as tabla, relrowsecurity as rls_activo
-from pg_class
-where relnamespace = 'public'::regnamespace and relkind = 'r'
-order by relname;
+-- --------------------------------------------------------------
+-- 12.1 Diagnóstico — cada fila es un problema
+-- --------------------------------------------------------------
+-- Sin filas = todo correcto.
+--
+-- Excepción esperada: mientras la línea de buckets privados de §11
+-- siga comentada, saldrán 'gestion-ambiental' y 'docs-transporte'.
+-- Es correcto que aparezcan; es el punto 6 de CONTRATO-RLS.md §1.
 
-select tablename, policyname, cmd, roles
-from pg_policies where schemaname = 'public'
-order by tablename, cmd;
+select 'TABLA SIN RLS' as problema,
+       c.relname::text as objeto,
+       'Abierta a cualquiera que tenga la llave publishable' as detalle
+from pg_class c
+where c.relnamespace = 'public'::regnamespace
+  and c.relkind = 'r'
+  and not c.relrowsecurity
 
-select id, public from storage.buckets order by id;
+union all
+
+-- RLS activo y cero políticas no es seguridad: es un cierre total.
+-- La tabla deja de responder y la página que la usa se queda vacía.
+--
+-- Excepción declarada: residuos_transporte_doc está sellada a
+-- propósito (§9.1). Se excluye aquí para que cada fila de este
+-- diagnóstico siga siendo un problema de verdad; un aviso permanente
+-- que hay que aprender a ignorar acaba tapando los que sí importan.
+select 'RLS SIN NINGUNA POLITICA',
+       c.relname::text,
+       'Nadie puede leer ni escribir; la app verá la tabla vacía'
+from pg_class c
+where c.relnamespace = 'public'::regnamespace
+  and c.relkind = 'r'
+  and c.relrowsecurity
+  and c.relname <> all(array['residuos_transporte_doc'])
+  and not exists (
+    select 1 from pg_policies p
+    where p.schemaname = 'public' and p.tablename = c.relname
+  )
+
+union all
+
+select 'BUCKET QUE DEBERIA SER PRIVADO',
+       b.id,
+       'Documentacion regulatoria accesible por URL adivinada'
+from storage.buckets b
+where b.id in ('gestion-ambiental', 'docs-transporte')
+  and b.public
+
+order by 1, 2;
+
+
+-- --------------------------------------------------------------
+-- 12.2 Listados detallados (ejecutar seleccionando cada uno)
+-- --------------------------------------------------------------
+
+-- select relname as tabla, relrowsecurity as rls_activo
+-- from pg_class
+-- where relnamespace = 'public'::regnamespace and relkind = 'r'
+-- order by relname;
+
+-- select tablename, policyname, cmd, roles
+-- from pg_policies where schemaname = 'public'
+-- order by tablename, cmd;
+
+-- select id, public from storage.buckets order by id;

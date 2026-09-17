@@ -20,7 +20,7 @@ En este orden. Cada punto asume el anterior resuelto.
 
 | # | Acción | Severidad | Referencia |
 |---|--------|-----------|------------|
-| 1 | Confirmar que **RLS está activo** en las 8 tablas | 🔴 Bloqueante | [§5](#5-verificación) |
+| 1 | Confirmar que **RLS está activo** en las 9 tablas | 🔴 Bloqueante | [§5](#5-verificación) |
 | 2 | `USING (auth.uid() = user_id)` en los `UPDATE`/`DELETE` | 🔴 Crítico | [C1](#c1--propiedad-en-escrituras-destructivas) |
 | 3 | `WITH CHECK (auth.uid() = user_id)` en los `INSERT` | 🔴 Crítico | [C2](#c2--identidad-no-falsificable-en-inserts) |
 | 4 | Bloquear `company_type` en el `UPDATE` de `profiles` | 🟠 Alto | [C3](#c3--el-rol-es-inmutable-desde-el-cliente) |
@@ -225,14 +225,41 @@ correcta** y hace posible la política estándar.
 **Contrato:** solo el propietario escribe en su carpeta; los dos buckets de
 cumplimiento no son legibles por URL adivinada.
 
+El criterio es idéntico para los dos buckets de cumplimiento — el primer
+segmento de la ruta tiene que ser el id de quien sube:
+
 ```sql
-create policy "sube_en_su_carpeta" on storage.objects
+create policy "sube_en_su_carpeta_gestion" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'gestion-ambiental'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+create policy "sube_en_su_carpeta_docs" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'docs-transporte'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 ```
+
+Y lo mismo para los tres públicos (`residuos-fotos`, `fotos-transporte`,
+`company-logos`): que un bucket sea de lectura pública no significa que
+cualquiera pueda escribir en la carpeta de otro.
+
+> **Cómo se implementa.** `supabase/politicas.sql` §11 no crea cinco políticas
+> casi idénticas: usa una sola con `bucket_id in (...)` sobre los cinco buckets.
+> El efecto es el mismo —varias políticas permisivas se combinan con `OR`— y hay
+> un objeto que revisar en vez de cinco que pueden divergir. Este documento las
+> lista por separado porque describe **qué debe ser cierto** para cada bucket;
+> el script elige cómo cumplirlo.
+
+**El mismo criterio vale para el `DELETE`,** y ahí hay un matiz que conviene
+fijar: la política de borrado debe estar acotada a esos cinco buckets, igual que
+la de subida. Una política de `DELETE` sobre `storage.objects` sin filtro de
+`bucket_id` alcanza también a cualquier bucket que se cree en el futuro, antes
+de que a nadie le dé tiempo a escribirle una política propia.
 
 Los buckets privados obligan al único cambio de código de este contrato:
 `getPublicUrl()` → `createSignedUrl(path, segundos)` en `gestion-ambiental.html`
@@ -241,6 +268,38 @@ y `transporte-responsable.html`.
 ---
 
 ## 5. Verificación
+
+`supabase/politicas.sql` ya no espera a que alguien corra esto a mano. El script
+comprueba por sí mismo, **antes de crear ninguna política**:
+
+| Paso | Qué hace | Si falla |
+|---|---|---|
+| §0 | que las 9 tablas existan con ese nombre | **aborta** sin aplicar nada |
+| §1 | `enable row level security` en las 8, explícito | — |
+| §1.1 | relee el catálogo y confirma que quedó activo | **aborta** antes de las políticas |
+| §1.2 | busca tablas en `public` sin RLS que el script no cubra | **avisa** (`warning`) |
+
+El paso §1.2 es el que cubre el hueco de este documento: las tablas listadas son
+las que se conocían al escribirlo, y una creada después queda abierta sin que
+nadie lo note.
+
+**Ya pasó una vez.** La primera ejecución destapó `residuos_transporte_doc`, una
+novena tabla que no estaba en este contrato: existe en la base, no la usa ninguna
+parte del código, y tenía RLS activo con cero políticas. Todo apunta a que es un
+nombre anterior de `transporte_documentacion` abandonado durante el desarrollo.
+
+**Decisión: se conserva, sellada.** RLS activo y sin políticas es el estado más
+seguro para una tabla sin uso, así que se deja como está — pero ahora de forma
+deliberada y no por accidente: `politicas.sql` §9.1 lo documenta, §1 le aplica el
+`enable` explícito para que no dependa de que alguien lo hiciera a mano, y §12.1
+la excluye del diagnóstico para que cada fila de ese informe siga siendo un
+problema real.
+
+Si algún día la app pasa a usarla, necesita una columna de propiedad (hoy no se
+le conoce ninguna), sus políticas, y salir de las dos listas de excepción.
+
+Las consultas de abajo siguen sirviendo para auditar el estado en cualquier
+momento, no solo tras desplegar.
 
 ```sql
 -- 1) ¿RLS activo? Cualquier `false` es una tabla completamente abierta.
@@ -265,19 +324,141 @@ Prueba de aceptación, con dos cuentas de rol distinto:
 4. Un anónimo **no** puede leer `empresas_registro`.
 5. Una URL de `docs-transporte` **no** abre sin firmar.
 
+**Las cuatro primeras están automatizadas:** `npm run verificar:politicas`
+(`herramientas/verificar-politicas.mjs`). La quinta sigue siendo manual — el
+script no conoce la ruta de ningún objeto sin subir uno primero.
+
+Dos detalles de esa herramienta que conviene entender antes de fiarse de un ✔:
+
+- **Empieza por controles positivos.** Las cinco pruebas comprueban que algo
+  *no* se puede hacer, y eso pasa solo si la conexión está rota o la llave es
+  inválida. Los controles confirman primero que el catálogo responde y que cada
+  cuenta tiene el rol que dice tener.
+- **Un `DELETE` o un `UPDATE` denegados por RLS no dan error.** Postgres no
+  rechaza la petición: simplemente no toca ninguna fila. Mirar solo el código
+  HTTP daría un ✔ falso, así que el script usa `Prefer: return=representation`
+  y cuenta las filas afectadas.
+
+Si una prueba de escritura se cuela (fallo real de política), el script borra
+la fila que acaba de crear y la reporta como FALLA.
+
 ---
 
 ## 6. Estado
 
-| Cláusula | Estado | Verificado |
+`supabase/politicas.sql` aplicado el **2026-09-14**.
+
+Hay dos columnas y no una porque significan cosas distintas. **Aplicada** = el
+objeto existe en Postgres; lo confirma el diagnóstico de §12.1 leyendo el
+catálogo. **Verificada** = hace lo que dice; eso solo lo demuestran las pruebas
+de aceptación de §5, con dos cuentas de rol distinto. Una política puede existir
+y estar mal escrita.
+
+| Cláusula | Aplicada | Verificada |
 |---|---|---|
-| RLS activo en las 8 tablas | ⬜ Pendiente | |
-| C1 — Propiedad en `UPDATE`/`DELETE` | ⬜ Pendiente | |
-| C2 — Identidad en `INSERT` | ⬜ Pendiente | |
-| C3 — `company_type` inmutable | ⬜ Pendiente | |
-| C4 — Rol por tabla | ⬜ Pendiente | |
-| C5 — Lecturas | ⬜ Pendiente | |
-| C6 — Storage | ⬜ Pendiente | |
+| RLS activo en las 9 tablas | ✅ 2026-09-14 | ✅ §12.1 no devuelve ninguna `TABLA SIN RLS` |
+| C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ⬜ prueba 2 saltada: falta un residuo ajeno |
+| C2 — Identidad en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
+| C3 — `company_type` inmutable | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 3 |
+| C4 — Rol por tabla | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, pruebas 1 y 6 |
+| C5 — Lecturas: `empresas_registro` | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 4 |
+| C5 — Lecturas: filtro de `estado` | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 7 |
+| C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
+| C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
+
+**Estado al 2026-09-17: 9 pruebas pasan, 0 fallan.** Queda una sin cubrir:
+
+- **Prueba 2** (C1, borrar residuo ajeno): saltada porque todos los residuos de
+  la base pertenecen a la misma cuenta. Para cubrirla hace falta un residuo
+  publicado desde una segunda cuenta `proveedor`. **Saltada no es pasada**: C1 es
+  la única cláusula que sigue sin demostrar, y cubre precisamente las escrituras
+  destructivas sobre datos ajenos.
+
+### Storage tenía el mismo problema, y peor
+
+Revisado `storage.objects` después de limpiar `public`, aparecieron **ocho
+políticas heredadas** más, cinco de ellas agujeros:
+
+| Política | Qué abría |
+|---|---|
+| `read_docs_transporte` | `select to public` sobre todo el bucket: **cualquier anónimo** descargaba los permisos y licencias de todas las empresas |
+| `gestion-ambiental 18bzzz3_0` | subir a la carpeta de cualquier empresa |
+| `upload_docs_transporte` | ídem |
+| `upload_residuos_fotos_authenticated 113fh0g_0` | ídem |
+| `allow authenticated upload 1mvdji2_0` | ídem, además con rol `public` |
+
+Las cuatro de subida comprobaban el `bucket_id` pero no
+`(storage.foldername(name))[1] = auth.uid()`, que es el único cimiento de la
+separación entre empresas en Storage.
+
+> **Volver el bucket privado no habría bastado.** El flag `public` del bucket
+> gobierna la URL directa; la lectura por API la decide la política. Con
+> `read_docs_transporte` en pie, los documentos habrían seguido siendo
+> descargables por cualquiera. Por eso la prueba 5 comprueba **las dos vías**:
+> anónimo por URL pública, y con sesión ajena por API.
+
+`politicas.sql` §11 borra ahora todas las políticas de `storage.objects` antes de
+crear las suyas, igual que §1.3 con las tablas.
+
+**Total del 2026-09-17: 12 agujeros en 5 tablas y 5 buckets**, todos invisibles
+para cualquier herramienta que lea el catálogo.
+
+La limpieza del 2026-09-17 se hizo con `drop policy` dirigidos sobre las 19
+políticas heredadas, no re-ejecutando el script. El estado final es el mismo.
+`politicas.sql` §1.3 existe para que esto no vuelva a hacer falta: la próxima
+ejecución barrerá sola cualquier política que aparezca por fuera.
+
+### Por qué C4 y C5 aparecían aplicadas y estaban rotas
+
+La primera ejecución real de `npm run verificar:politicas` (2026-09-17) destapó
+que **un `comprador` podía publicar residuos**. La política del contrato existía
+y estaba correctamente escrita; el problema era otro.
+
+El proyecto arrastraba políticas creadas a mano desde el panel de Supabase, con
+nombres distintos a los del script. `politicas.sql` solo hacía `drop policy if
+exists` de **sus propios nombres**, así que las heredadas sobrevivían intactas. Y
+en Postgres las políticas permisivas se combinan con **OR**: basta que una
+permita para que la operación pase.
+
+```
+residuos_inserta                   with check (... mi_rol() = 'proveedor')
+insert_residuos_any_authenticated  with check (true)      ← ganaba esta
+```
+
+Eran **siete agujeros en cinco tablas**: INSERT sin comprobar rol en
+`residuos_publicados`, `servicios_transporte` e `intereses`; INSERT saltándose la
+propiedad transitiva en `cumplimiento_transporte` y `residuos_gestion_ambiental`;
+y `SELECT using (true)` en `residuos_publicados` y `servicios_transporte`, que
+dejaba ver borradores y vendidos de otras empresas a cualquiera con sesión.
+
+**Ninguna herramienta que lea el catálogo podía detectarlo.** El diagnóstico de
+§12.1 confirmaba que la política correcta existía, y era verdad. Solo apareció al
+intentar de verdad la operación que debía fallar.
+
+Dos cambios lo cierran:
+
+1. `politicas.sql` §1.3 borra **todas** las políticas de sus tablas antes de
+   crear las suyas. El archivo pasa a ser la única fuente de verdad: lo que no
+   esté escrito ahí, no existe.
+2. El verificador añade las pruebas 6 y 7, una por cada agujero que no era el de
+   la prueba 1.
+
+**Lo único que falta por aplicar es el punto 6 de §1:** `gestion-ambiental` y
+`docs-transporte` siguen en `public = true`. La línea que los cierra está
+comentada a propósito en `politicas.sql` §11, y por eso el diagnóstico devuelve
+esas dos filas cada vez. Son las únicas dos que debe devolver.
+
+> **El motivo de ese bloqueo ya no aplica.** El comentario de §11 dice que
+> `gestion-ambiental.html` y `transporte-responsable.html` usan `getPublicUrl()`,
+> pero eso se corrigió en la migración: hoy `data/cumplimiento.js` guarda rutas,
+> no URLs, y `referenciar()` firma tanto las rutas nuevas como las URLs completas
+> de las filas antiguas. Ninguna página llama ya a `getPublicUrl()`.
+>
+> Queda una comprobación antes de descomentarlo: `urlsDeDocumentos()` existe en
+> `data/cumplimiento.js` pero **ninguna página la llama todavía**, así que ahora
+> mismo los documentos se suben y no se muestran en ninguna parte. Volver los
+> buckets privados no rompe nada visible — no hay nada que mostrar —, pero la
+> pantalla que los muestre tendrá que usar esa función desde el primer día.
 
 ---
 
