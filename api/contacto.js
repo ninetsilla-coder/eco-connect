@@ -58,6 +58,11 @@ module.exports = async (req, res) => {
   try {
     const respuesta = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      // Resend es un tercero: si se cuelga, sin este límite la función
+      // espera hasta agotar su tiempo de ejecución en Vercel. El lead
+      // ya está guardado en empresas_registro (ver CLAUDE.md §3), así
+      // que rendirse pronto no pierde nada.
+      signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
@@ -79,6 +84,10 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({ ok: true });
   } catch (err) {
+    if (err.name === "TimeoutError" || err.name === "AbortError") {
+      console.error("Resend no respondió a tiempo; el lead ya está guardado");
+      return res.status(504).json({ error: "El servicio de correo no respondió" });
+    }
     console.error("Error inesperado al enviar el correo:", err);
     return res.status(500).json({ error: "Error inesperado" });
   }
