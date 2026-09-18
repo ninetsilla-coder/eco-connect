@@ -374,7 +374,7 @@ y estar mal escrita.
 | Cláusula | Aplicada | Verificada |
 |---|---|---|
 | RLS activo en las 9 tablas | ✅ 2026-09-14 | ✅ §12.1 no devuelve ninguna `TABLA SIN RLS` |
-| C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ⬜ prueba 2 saltada: falta un residuo ajeno |
+| C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ✅ 2026-09-18, prueba 2 |
 | C2 — Identidad en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
 | C3 — `company_type` inmutable | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 3 |
 | C4 — Rol por tabla (las 5) | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-18, pruebas 1, 6, 9, 10 y 11 |
@@ -384,7 +384,21 @@ y estar mal escrita.
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
 | C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
 
-**Estado al 2026-09-18: 13 pruebas pasan, 0 fallan.**
+## ✅ Estado al 2026-09-18: 14 pruebas pasan, 0 fallan, 0 saltadas
+
+**El contrato está cerrado.** Las siete cláusulas están aplicadas y verificadas
+—no leyendo el catálogo, sino intentando de verdad cada operación que debe
+fallar— con dos cuentas de rol distinto y una tercera para probar el acceso a
+datos ajenos.
+
+Reproducible en cualquier momento con `npm run verificar:politicas`.
+
+Conviene correrlo **cada vez que alguien toque la configuración de Supabase**, no
+solo cuando cambie el SQL: los 12 agujeros del 2026-09-17 no los introdujo un
+commit, sino políticas creadas a mano desde el panel.
+
+---
+
 
 C4 pone una comprobación de rol en el `INSERT` de cinco tablas. Hasta el
 2026-09-18 solo dos estaban ejercitadas (`residuos_publicados` y
@@ -398,13 +412,17 @@ error**: si el rechazo viene de una clave foránea (`23503`) en vez de RLS
 (`42501`), reportan SALTADA. Una prueba que pasa por violar una FK no ha probado
 la política.
 
-Queda una sin cubrir:
+La prueba 2 (C1) estuvo saltada varios días porque todos los residuos de la base
+pertenecían a la misma cuenta: no había nada ajeno que intentar borrar. Se
+resolvió registrando una segunda cuenta `proveedor` y publicando un residuo desde
+ella. **Saltada no es pasada**, y C1 —las escrituras destructivas sobre datos de
+otros— era la cláusula que más caro costaba dejar sin demostrar.
 
-- **Prueba 2** (C1, borrar residuo ajeno): saltada porque todos los residuos de
-  la base pertenecen a la misma cuenta. Para cubrirla hace falta un residuo
-  publicado desde una segunda cuenta `proveedor`. **Saltada no es pasada**: C1 es
-  la única cláusula que sigue sin demostrar, y cubre precisamente las escrituras
-  destructivas sobre datos ajenos.
+> Es el requisito de datos que tiene esta suite: hacen falta **tres cuentas** —un
+> `comprador`, y dos `proveedor` para que una tenga algo que la otra no posea— y
+> al menos un residuo de cada proveedor, uno de ellos en estado distinto de
+> `disponible` (prueba 7). Con menos, algunas pruebas salen saltadas y el
+> contrato queda a medio demostrar sin que el recuento lo grite.
 
 ### Storage tenía el mismo problema, y peor
 

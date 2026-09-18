@@ -413,11 +413,12 @@ Corregidos en la migración:
 
 Pendientes:
 
-- **Una prueba de aceptación sin cubrir.** El 2026-09-17 el verificador dio 9
-  pasan / 0 fallan, pero la **2** quedó saltada y *saltada no es pasada*: no hay
-  ningún residuo publicado desde una segunda cuenta `proveedor`, así que no tuvo
-  datos ajenos que intentar borrar. C1 —propiedad en escrituras destructivas— es
-  la única cláusula que sigue sin demostrar.
+- **El contrato RLS está cerrado** (2026-09-18: 14 pasan, 0 fallan, 0 saltadas).
+  No es una tarea pendiente, sino la advertencia que la sustituye: correr
+  `npm run verificar:politicas` **cada vez que alguien toque la configuración de
+  Supabase**, no solo cuando cambie el SQL. Los 12 agujeros del 2026-09-17 no los
+  introdujo ningún commit — eran políticas creadas a mano desde el panel, y el
+  panel sigue ahí.
 - **`urlsDeDocumentos()` es código muerto.** Existe en `data/cumplimiento.js` y no
   la llama ninguna página: los documentos de cumplimiento se suben y no se
   muestran en ningún sitio. Ahora que los buckets son privados, la pantalla que
