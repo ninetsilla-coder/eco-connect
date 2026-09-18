@@ -231,6 +231,16 @@ cuando evoluciona el esquema.
 
 **Regla: ninguna query dentro de un `.html` ni de un `pages/*.js`.**
 
+`dependencias.test.js` la vigila por dos vías, porque escrita y sin vigilar se
+erosiona una query cada vez:
+
+1. **Ningún `pages/*.js` importa `core/supabase.js`.** El permiso `pages → core`
+   de §4.1 lo dejaba pasar; sin cliente, una página no puede saltarse `data/`
+   aunque quiera.
+2. **`.from("<tabla>")` solo aparece en `data/`.** Única excepción declarada:
+   `core/sesion.js` consulta `profiles`, porque resuelve el perfil junto con la
+   sesión y no puede importar `data/` (core no conoce a nadie).
+
 ### 4.3 Sesión resuelta una sola vez
 
 `core/sesion.js` cachea `{ session, usuario, perfil, rol }` y expone un único

@@ -297,6 +297,50 @@ describe("capas de public/js", () => {
     assert.deepEqual(rotos, [], `imports a archivos inexistentes:\n${rotos.join("\n")}`);
   });
 
+  // §4.2: toda query de una tabla vive en data/<tabla>.js. Eso es lo
+  // que hace que añadir una columna sea UNA edición en vez de una
+  // búsqueda por todo el repo.
+  //
+  // La regla estaba escrita pero no vigilada: el permiso pages -> core
+  // deja que una página importe el cliente y escriba su propia
+  // consulta. Nada la detendría, y la capa de datos se erosionaría una
+  // query cada vez, que es justo de donde venía la migración.
+  test("ninguna página puede llegar al cliente de Supabase", () => {
+    const culpables = MODULOS.filter(
+      (m) => m.startsWith("pages/") && IMPORTES_INTERNOS[m].includes("core/supabase.js")
+    );
+
+    assert.deepEqual(
+      culpables,
+      [],
+      `estas páginas importan el cliente y podrían saltarse data/: ${culpables.join(", ")}`
+    );
+  });
+
+  // Y la regla general, por si el cliente llega por otra vía.
+  //
+  // Solo se miran los `.from("tabla")` con literal: `.from(bucket)` es
+  // Storage y `Array.from(...)` no tiene nada que ver. Si algún día se
+  // llama a storage.from() con un literal, habrá que distinguirlos.
+  test("las consultas a tablas solo viven en data/", () => {
+    // Excepción declarada: core/sesion.js resuelve el perfil junto con
+    // la sesión, y no puede importar data/ porque core no conoce a
+    // nadie (§4.1). Es la única, y está aquí para que se vea.
+    const EXCEPCIONES = { "core/sesion.js": ["profiles"] };
+
+    const fuera = MODULOS.flatMap((modulo) =>
+      [...fuente(modulo).matchAll(/\.from\(\s*["']([^"']+)["']/g)]
+        .map((c) => c[1])
+        .filter((tabla) => {
+          if (modulo.startsWith("data/")) return false;
+          return !EXCEPCIONES[modulo]?.includes(tabla);
+        })
+        .map((tabla) => `${modulo} consulta "${tabla}"`)
+    );
+
+    assert.deepEqual(fuera, [], `queries fuera de data/:\n${fuera.join("\n")}`);
+  });
+
   // Un ciclo en módulos ES no revienta: deja una exportación en
   // `undefined` en tiempo de carga, y el error aparece lejos de su
   // causa. Más barato prohibirlos.
