@@ -26,7 +26,7 @@ framework, sin npm.**
 | Datos, auth y archivos | Supabase (Postgres, Auth, Storage) |
 | Backend | Una función serverless en Vercel (`api/contacto.js`, CommonJS) |
 | Correo | Resend |
-| Dependencias de ejecución | 2, por CDN: `@supabase/supabase-js@2.39.7` (esm.sh) y Google Fonts |
+| Dependencias de ejecución | 2, por CDN: `@supabase/supabase-js@2.116.0` (esm.sh) y Google Fonts |
 | Pruebas | `node --test` (integrado) + `jsdom` como única dependencia de desarrollo |
 
 **Cero dependencias llegan al navegador desde npm.** `node_modules/` existe solo
@@ -45,8 +45,8 @@ grafo de dependencias —externo e interno— está fijado en
 
 | Dependencia | Cómo se fija | Por qué |
 |---|---|---|
-| `@supabase/supabase-js` | versión **exacta** (`@2.39.7`) en la URL de esm.sh | con `@2`, una publicación ajena rompe el sitio sin que nadie toque el repo |
-| ⚠️ ídem en `main` | `@2.116.0` en los 13 HTML | **no coinciden**: ver §7 antes de mezclar |
+| `@supabase/supabase-js` | versión **exacta** (`@2.116.0`) en la URL de esm.sh | con `@2`, una publicación ajena rompe el sitio sin que nadie toque el repo |
+| ídem en `main` | `@2.116.0` en los 13 HTML (jsDelivr) | misma versión en las dos ramas desde el 2026-09-18 |
 | CDN | solo `esm.sh` | `ayudas/cargador.js` intercepta ese prefijo; cambiarlo rompe las pruebas |
 | Google Fonts | una sola hoja, **idéntica en las 13 páginas** | subconjuntos distintos = páginas que se ven distintas |
 | `jsdom` | versión exacta + `package-lock.json` commiteado | usar `npm ci`, no `npm install` |
@@ -190,7 +190,7 @@ public/js/
   pages/<pagina>.js      lo específico de cada página
 ```
 
-Supabase se importa desde esm.sh con **versión exacta** (`@2.39.7`). Con `@2`
+Supabase se importa desde esm.sh con **versión exacta** (`@2.116.0`). Con `@2`
 flotante, un cambio upstream rompe el sitio sin que nadie toque el repo. Subirla
 es una decisión deliberada.
 
@@ -414,20 +414,23 @@ Corregidos en la migración:
 
 Pendientes:
 
-- **🔴 Bloqueante del merge: la versión de `supabase-js` no coincide entre ramas.**
-  Esta rama importa `@2.39.7` desde esm.sh. `main` cargaba `@2` flotante en los
-  13 HTML, y el 2026-09-18 se fijó a **`@2.116.0`**, que es lo que ese `@2` estaba
-  resolviendo de verdad (comprobado contra la cabecera `X-JSD-Version` de
-  jsDelivr). O sea: **producción lleva meses corriendo 2.116.0**, no 2.39.7.
+- **Cómo se sube la versión de `supabase-js`** (resuelto el 2026-09-18, pero el
+  método vale para la próxima). Esta rama importaba `@2.39.7` mientras `main`
+  cargaba `@2` flotante — que el CDN resolvía a **2.116.0**. O sea que producción
+  llevaba meses en 2.116.0 y mezclar habría **degradado el cliente 77 versiones
+  menores en silencio**, sin que nadie lo notara porque esta rama nunca se ha
+  desplegado. Hacia atrás no hay garantía de semver.
 
-  Mezclar tal cual **degradaría el cliente 77 versiones menores en silencio**, y
-  nadie lo notaría porque esta rama nunca se ha desplegado. Hacia atrás no hay
-  garantía de semver: se pierden correcciones y se reabren fallos ya arreglados.
+  Ya están las dos ramas en `@2.116.0`. La trampa a recordar: **`npm test` no
+  cubre este cambio.** El hook de §5.1 sustituye la URL de esm.sh por el doble,
+  así que la librería real nunca se carga y la suite pasa igual con una versión
+  inexistente. Para verificar un bump hay dos formas:
 
-  Antes de mezclar: subir `core/supabase.js` a `@2.39.7` → `@2.116.0` y
-  **probarlo en el navegador** (`npm run servir`). Las pruebas no lo cubren — el
-  hook de §5.1 sustituye la URL por el doble, así que la librería real nunca se
-  carga en `npm test`. Es exactamente el caso en que hay que abrir el navegador.
+  1. `npm run servir` y abrir el navegador.
+  2. Cargar el módulo real en Node con un hook que resuelva los imports por HTTP
+     —lo inverso al de las pruebas— e importar `core/supabase.js` de verdad. Así
+     se comprobó 2.116.0: el cliente se construye, expone `from`, `auth` y
+     `storage`, y una consulta real al catálogo devolvió filas.
 
 - **El contrato RLS está cerrado** (2026-09-18: 14 pasan, 0 fallan, 0 saltadas).
   No es una tarea pendiente, sino la advertencia que la sustituye: correr

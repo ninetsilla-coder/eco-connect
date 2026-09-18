@@ -14,7 +14,7 @@
 // decisión deliberada, no un accidente.
 // ==============================================================
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 
 const SUPABASE_URL = "https://afutqmvovdkqyxopdcfo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_P7aBG_DaIGC2fKZR7UaQBw_wdI1BU3R";

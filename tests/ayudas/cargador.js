@@ -3,7 +3,7 @@
 // ==============================================================
 // public/js/core/supabase.js importa el cliente desde una URL:
 //
-//   import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+//   import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 //
 // Eso funciona en el navegador, pero Node NO resuelve imports por HTTP
 // (la bandera --experimental-network-imports se eliminó). Sin este hook,
