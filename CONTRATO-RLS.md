@@ -37,14 +37,52 @@ código de la aplicación. Solo el punto 6 obliga a un cambio en el cliente
 
 ## 2. Hallazgo que motiva el contrato
 
-`company_type` aparece 13 veces en el código y **las 13 son de presentación**:
-navbar (`js/script.js:52`), dropdown (`js/script.js:94`), texto del perfil
-(`js/profile.js:80`) y el alta de cuenta.
+> **Auditoría 2026-09-03 — cerrado el 2026-09-18.** Se conserva porque es la
+> razón de ser de este documento, pero **ya no describe el estado actual**.
 
-**No existe ni una sola comprobación de rol antes de un `insert`, `update` o
-`delete`.** Hoy, un `comprador` puede publicar residuos y un `proveedor` puede
-publicar servicios de transporte. Si las políticas no comprueban el rol, los tres
-roles son en la práctica el mismo rol.
+Al auditar, `company_type` aparecía 13 veces en el código y **las 13 eran de
+presentación**: navbar, dropdown, texto del perfil y el alta de cuenta. No había
+ni una sola comprobación de rol antes de un `insert`, `update` o `delete`.
+
+Consecuencia de entonces: un `comprador` podía publicar residuos y un `proveedor`
+podía publicar servicios de transporte. **Si las políticas no comprueban el rol,
+los tres roles son en la práctica el mismo rol.**
+
+### Qué sigue siendo cierto, y por diseño
+
+La primera mitad del hallazgo no se ha «arreglado» porque **no era el defecto**:
+en el código actual, todo uso de `company_type` sigue siendo de presentación
+—`ui/navbar.js` para el dropdown, `pages/index.js` para los paths del home,
+`pages/profile.js` para la etiqueta— y **no hay ninguna comprobación de rol antes
+de escribir**. Es exactamente lo que manda la regla de este contrato: el cliente
+decide qué se muestra, Postgres decide qué se puede hacer. Añadir un `if (rol ===
+...)` antes de un `insert` no aportaría seguridad y daría la falsa impresión de
+tenerla.
+
+`core/sesion.js` expone `requiereSesion()` y `requiereRol()`, que redirigen. Son
+**experiencia de usuario, no control**: evitan aterrizar en una página que no
+sirve, y no impiden nada a quien llame a la API directamente.
+
+### Qué cambió
+
+La segunda mitad —la consecuencia— está cerrada. El rol se comprueba en **cinco
+políticas de `INSERT`** (`public.mi_rol()`), más la propiedad transitiva de §8.
+
+Y no está cerrada porque las políticas existan: entre el 2026-09-14 y el
+2026-09-17 existieron **y aun así un comprador podía publicar**, porque políticas
+heredadas del panel las anulaban por `OR` (ver §6). Está cerrada porque se
+intentó de verdad la operación y Postgres la rechazó:
+
+| Prueba | Qué intenta |
+|---|---|
+| 1 | un `comprador` publicando residuos |
+| 6 | un `comprador` publicando servicios de transporte |
+| 9 | un `proveedor` registrando intereses |
+| 10 | un `comprador` subiendo gestión ambiental |
+| 11 | un `comprador` subiendo cumplimiento de transporte |
+| 12 | documentación colgada de un residuo ajeno |
+
+`npm run verificar:politicas` las repite cuando haga falta.
 
 ---
 
