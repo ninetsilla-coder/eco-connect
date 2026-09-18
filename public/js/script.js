@@ -393,31 +393,30 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        console.log("DATOS PERFIL QUE VOY A GUARDAR:", {
-          id: user.id,
-          company_name: companyName,
-          company_type: companyType,
-          email: email,
-        });
-
-        const { error: profileError } = await supabaseClient
-          .from("profiles")
-          .update({
-            company_name: companyName,
-            company_type: companyType,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", user.id);
-
-        if (profileError) {
-          console.error("Error guardando perfil:", profileError);
-          if (signupStatus) {
-            signupStatus.textContent =
-              "Cuenta creada, pero hubo un problema guardando el perfil.";
-            signupStatus.classList.add("error");
-          }
-          return;
-        }
+        // El perfil YA está creado a estas alturas.
+        //
+        // El signUp de arriba manda company_name y company_type en
+        // options.data, y el trigger crear_perfil() los copia a la tabla
+        // profiles en la misma transacción que crea el usuario
+        // (supabase/politicas.sql §2). No hay nada que guardar aquí.
+        //
+        // Aquí había un .update() sobre profiles que repetía esos dos
+        // campos. Tenía dos problemas:
+        //
+        // 1. Era una carrera. Asumía que la fila ya existía; si el
+        //    trigger no había corrido todavía, el update afectaba 0
+        //    filas SIN devolver error y la cuenta se quedaba sin rol.
+        //
+        // 2. Desde que se aplicó la cláusula C3 del contrato de
+        //    seguridad —revoke update on profiles, grant solo sobre
+        //    (location, logo_url, updated_at)— ese update ya no puede
+        //    funcionar nunca: company_type es inmutable desde el
+        //    cliente a propósito, porque si no, cualquiera se cambia de
+        //    rol enviando {company_type:"logistica"}. El resultado era
+        //    "Cuenta creada, pero hubo un problema guardando el perfil"
+        //    en cada alta, con la cuenta creada correctamente.
+        //
+        // Ver CONTRATO-RLS.md, cláusula C3.
 
         if (signupStatus) {
           signupStatus.textContent =
