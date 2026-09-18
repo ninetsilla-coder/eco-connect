@@ -377,13 +377,28 @@ y estar mal escrita.
 | C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ⬜ prueba 2 saltada: falta un residuo ajeno |
 | C2 — Identidad en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
 | C3 — `company_type` inmutable | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 3 |
-| C4 — Rol por tabla | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, pruebas 1 y 6 |
+| C4 — Rol por tabla (las 5) | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-18, pruebas 1, 6, 9, 10 y 11 |
+| C4 — Propiedad transitiva | ✅ 2026-09-14 | ✅ 2026-09-18, prueba 12 |
 | C5 — Lecturas: `empresas_registro` | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 4 |
 | C5 — Lecturas: filtro de `estado` | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 7 |
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
 | C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
 
-**Estado al 2026-09-17: 9 pruebas pasan, 0 fallan.** Queda una sin cubrir:
+**Estado al 2026-09-18: 13 pruebas pasan, 0 fallan.**
+
+C4 pone una comprobación de rol en el `INSERT` de cinco tablas. Hasta el
+2026-09-18 solo dos estaban ejercitadas (`residuos_publicados` y
+`servicios_transporte`); las otras tres —`intereses`,
+`residuos_gestion_ambiental` y `cumplimiento_transporte`— son las que menos se
+tocan, que es donde una política mal escrita puede vivir años sin que nadie la
+ejecute. Y la propiedad transitiva no la comprobaba nada.
+
+Las pruebas 9 a 12 cierran esas cuatro lagunas, y distinguen el **código de
+error**: si el rechazo viene de una clave foránea (`23503`) en vez de RLS
+(`42501`), reportan SALTADA. Una prueba que pasa por violar una FK no ha probado
+la política.
+
+Queda una sin cubrir:
 
 - **Prueba 2** (C1, borrar residuo ajeno): saltada porque todos los residuos de
   la base pertenecen a la misma cuenta. Para cubrirla hace falta un residuo

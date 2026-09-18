@@ -398,6 +398,113 @@ await comprobar("7. un comprador NO ve residuos ajenos sin publicar", async () =
 });
 
 // ==============================================================
+// C4 completo: las cinco puertas de rol
+// ==============================================================
+// El contrato pone una comprobación de rol en el INSERT de cinco
+// tablas. Las pruebas 1 y 6 cubrían dos; estas cubren las otras tres.
+//
+// Faltaban justo las de las tablas que menos se tocan, que es donde una
+// política mal escrita puede vivir años sin que nadie la ejecute.
+
+// Devuelve el código de error de PostgREST: 42501 es RLS denegando,
+// 23503 es una clave foránea. Distinguirlos importa — una prueba que
+// pasa por violar una FK no ha probado la política.
+const codigo = (cuerpo) => cuerpo?.code ?? null;
+
+const rechazaInsert = async (tabla, token, fila, politica) => {
+  const { estado, cuerpo } = await api(`/rest/v1/${tabla}`, {
+    method: "POST",
+    token,
+    headers: REPRESENTACION,
+    body: JSON.stringify(fila),
+  });
+
+  if (estado === 200 || estado === 201) {
+    const creado = Array.isArray(cuerpo) ? cuerpo[0] : cuerpo;
+    if (creado?.id) {
+      await api(`/rest/v1/${tabla}?id=eq.${creado.id}`, { method: "DELETE", token });
+    }
+    return { ok: false, detalle: `el insert SE ACEPTÓ; revisa ${politica}` };
+  }
+
+  // Una FK rota rechaza igual, pero no demuestra nada sobre el rol.
+  if (codigo(cuerpo) === "23503") {
+    return {
+      saltada: true,
+      detalle: `lo rechazó una clave foránea (23503), no la política; no prueba ${politica}`,
+    };
+  }
+
+  return { ok: true, detalle: estado === 403 ? null : `HTTP ${estado} (${codigo(cuerpo) ?? "sin código"})` };
+};
+
+// Un residuo real con el que construir filas válidas: si la fila fuera
+// inválida por otro motivo, el rechazo no probaría el rol.
+const { cuerpo: catalogo } = await api("/rest/v1/residuos_publicados?select=id&limit=1");
+const RESIDUO = catalogo?.[0]?.id ?? null;
+
+await comprobar("9. un proveedor NO puede registrar intereses", async () => {
+  if (!RESIDUO) return { saltada: true, detalle: "no hay ningún residuo con el que construir el interés" };
+
+  return rechazaInsert(
+    "intereses",
+    proveedor.token,
+    { user_id: proveedor.id, tipo: "residuo", residuo_id: RESIDUO, servicio_transporte_id: null },
+    "intereses_inserta (§7)"
+  );
+});
+
+await comprobar("10. un comprador NO puede subir gestión ambiental", async () => {
+  if (!RESIDUO) return { saltada: true, detalle: "no hay ningún residuo del que colgar la documentación" };
+
+  return rechazaInsert(
+    "residuos_gestion_ambiental",
+    comprador.token,
+    {
+      user_id: comprador.id,
+      residuo_id: RESIDUO,
+      tipo: "documentacion",
+      descripcion: "PRUEBA-RLS (borrar si aparece)",
+    },
+    "gestion_inserta (§8)"
+  );
+});
+
+await comprobar("11. un comprador NO puede subir cumplimiento de transporte", async () =>
+  rechazaInsert(
+    "cumplimiento_transporte",
+    comprador.token,
+    {
+      user_id: comprador.id,
+      servicio_id: null,
+      practicas_manejo: "PRUEBA-RLS (borrar si aparece)",
+    },
+    "cumplimiento_inserta (§8)"
+  )
+);
+
+// --- 12 — la otra mitad de C4: propiedad transitiva ---
+// No basta con ser proveedor: la documentación tiene que colgar de un
+// residuo PROPIO. Se prueba con un residuo inexistente, que es la forma
+// de comprobarlo sin necesitar una tercera cuenta — si la cláusula
+// `exists (...)` faltara, la fila entraría.
+await comprobar("12. la gestión ambiental NO cuelga de un residuo ajeno", async () => {
+  const INEXISTENTE = "00000000-0000-4000-8000-000000000000";
+
+  return rechazaInsert(
+    "residuos_gestion_ambiental",
+    proveedor.token,
+    {
+      user_id: proveedor.id,
+      residuo_id: INEXISTENTE,
+      tipo: "documentacion",
+      descripcion: "PRUEBA-RLS (borrar si aparece)",
+    },
+    "la cláusula exists() de gestion_inserta (§8)"
+  );
+});
+
+// ==============================================================
 // Storage (C6)
 // ==============================================================
 // La primera versión dejaba esto como comprobación manual porque el
