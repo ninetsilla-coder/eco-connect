@@ -348,6 +348,15 @@ Por orden de valor:
    credenciales, está mal planteada.
 5. **`beforeEach(reiniciar)`** siempre que se use el doble: su estado es global y
    filtra entre pruebas.
+
+   Única excepción, documentada en el propio archivo: `sesion-eventos.test.js`.
+   `listenerInstalado` es estado de módulo que no se puede revertir desde fuera,
+   y `reiniciar()` vacía `registro.suscriptores` — dejaría a `sesion.js` creyendo
+   que tiene instalado un listener que el doble ya no conoce, el evento no
+   llegaría a ninguna parte y las pruebas pasarían **en falso**. Se monta una vez
+   en `before()` y solo se reinicia el contador de consultas. Exportar un
+   reinicio solo para pruebas sería tocar producción para poder probarla, que es
+   lo que §5.1 descarta.
 6. `core/sesion.js` cachea a nivel de módulo — llamar también a
    `invalidarSesion()` entre pruebas.
 7. **No perseguir un porcentaje de cobertura.** Cubrir invariantes y regresiones;
