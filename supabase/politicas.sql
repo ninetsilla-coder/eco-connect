@@ -505,6 +505,18 @@ create policy "cumplimiento_borra" on public.cumplimiento_transporte
   using (auth.uid() = user_id);
 
 
+-- C2 pide las DOS cosas, no una: el DEFAULT hace irrelevante el
+-- user_id que mande el cliente, y el WITH CHECK lo rechaza si no
+-- coincide. Estas dos tablas tenían solo el WITH CHECK — que basta para
+-- cerrar el agujero, pero deja la mitad de la defensa sin poner y la
+-- asimetría invita a que alguien copie el patrón incompleto.
+alter table public.residuos_gestion_ambiental
+  alter column user_id set default auth.uid();
+
+alter table public.cumplimiento_transporte
+  alter column user_id set default auth.uid();
+
+
 -- ==============================================================
 -- 9. transporte_documentacion
 -- ==============================================================

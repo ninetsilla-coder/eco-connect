@@ -505,6 +505,115 @@ await comprobar("12. la gestión ambiental NO cuelga de un residuo ajeno", async
 });
 
 // ==============================================================
+// C1 completo: las cuatro escrituras destructivas
+// ==============================================================
+// La auditoría señaló CUATRO operaciones que filtran solo por un id
+// sacado de un data-id del DOM, y las llamó "la vulnerabilidad más
+// explotable del proyecto":
+//
+//   delete()          servicio
+//   update({estado})  servicio
+//   update({estado})  residuo
+//   delete()          interés
+//
+// La prueba 2 cubre el borrado de un residuo, que es una quinta. Las
+// cuatro nombradas no las cubría nada.
+//
+// Recordatorio de por qué el codigo HTTP no vale aquí: un UPDATE o un
+// DELETE denegado por RLS NO da error. Postgres no toca ninguna fila y
+// devuelve 200. Hay que contar filas afectadas.
+
+const noAfectaFilas = async (ruta, token, cuerpo, politica) => {
+  const { cuerpo: afectadas } = await api(ruta, {
+    method: cuerpo ? "PATCH" : "DELETE",
+    token,
+    headers: REPRESENTACION,
+    ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
+  });
+
+  const cuantas = Array.isArray(afectadas) ? afectadas.length : 0;
+  return {
+    ok: cuantas === 0,
+    detalle: cuantas === 0 ? null : `AFECTÓ ${cuantas} fila(s) ajena(s); revisa ${politica}`,
+  };
+};
+
+await comprobar("13. un proveedor NO puede cambiar el estado del residuo de otro", async () => {
+  const { cuerpo: ajenos } = await api(
+    `/rest/v1/residuos_publicados?select=id&user_id=neq.${proveedor.id}&limit=1`
+  );
+  if (!ajenos?.[0]) {
+    return { saltada: true, detalle: "no hay ningún residuo de otra cuenta con el que probar" };
+  }
+
+  return noAfectaFilas(
+    `/rest/v1/residuos_publicados?id=eq.${ajenos[0].id}`,
+    proveedor.token,
+    { estado: "vendido" },
+    "residuos_actualiza (§5)"
+  );
+});
+
+// El interés lo crea el comprador y lo limpia él mismo. Es la única
+// forma de probar esto: los intereses son privados, así que desde fuera
+// no se puede descubrir el id de uno ajeno — pero un atacante que lo
+// adivine sí podría intentarlo, y eso es lo que se comprueba.
+await comprobar("14. un proveedor NO puede borrar el interés de un comprador", async () => {
+  if (!RESIDUO) return { saltada: true, detalle: "no hay residuo sobre el que registrar un interés" };
+
+  const { estado, cuerpo } = await api("/rest/v1/intereses", {
+    method: "POST",
+    token: comprador.token,
+    headers: REPRESENTACION,
+    body: JSON.stringify({
+      user_id: comprador.id,
+      tipo: "residuo",
+      residuo_id: RESIDUO,
+      servicio_transporte_id: null,
+    }),
+  });
+
+  const creado = Array.isArray(cuerpo) ? cuerpo[0] : cuerpo;
+  if ((estado !== 200 && estado !== 201) || !creado?.id) {
+    return {
+      saltada: true,
+      detalle: `el comprador no pudo crear el interés de prueba (HTTP ${estado}); quizá ya tenía uno en ese residuo`,
+    };
+  }
+
+  try {
+    return await noAfectaFilas(
+      `/rest/v1/intereses?id=eq.${creado.id}`,
+      proveedor.token,
+      null,
+      "intereses_borra (§7)"
+    );
+  } finally {
+    await api(`/rest/v1/intereses?id=eq.${creado.id}`, {
+      method: "DELETE",
+      token: comprador.token,
+    });
+  }
+});
+
+await comprobar("15. un proveedor NO puede tocar el servicio de transporte de otro", async () => {
+  const { cuerpo: servicios } = await api(
+    `/rest/v1/servicios_transporte?select=id&user_id=neq.${proveedor.id}&limit=1`
+  );
+  if (!servicios?.[0]) {
+    return { saltada: true, detalle: "no hay ningún servicio de otra cuenta; publica uno desde una cuenta logistica" };
+  }
+
+  const ruta = `/rest/v1/servicios_transporte?id=eq.${servicios[0].id}`;
+
+  // Las dos operaciones que señalaba la auditoría, en una prueba.
+  const cambio = await noAfectaFilas(ruta, proveedor.token, { estado: "inactivo" }, "servicios_actualiza (§6)");
+  if (!cambio.ok) return cambio;
+
+  return noAfectaFilas(ruta, proveedor.token, null, "servicios_borra (§6)");
+});
+
+// ==============================================================
 // Storage (C6)
 // ==============================================================
 // La primera versión dejaba esto como comprobación manual porque el

@@ -412,8 +412,9 @@ y estar mal escrita.
 | Cláusula | Aplicada | Verificada |
 |---|---|---|
 | RLS activo en las 9 tablas | ✅ 2026-09-14 | ✅ §12.1 no devuelve ninguna `TABLA SIN RLS` |
-| C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ✅ 2026-09-18, prueba 2 |
-| C2 — Identidad en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
+| C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ✅ 2026-09-18, pruebas 2, 13, 14 y 15 |
+| C2 — `WITH CHECK` en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
+| C2 — `DEFAULT auth.uid()` en las 5 | ✅ 2026-09-18 | — (defensa en profundidad) |
 | C3 — `company_type` inmutable | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 3 |
 | C4 — Rol por tabla (las 5) | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-18, pruebas 1, 6, 9, 10 y 11 |
 | C4 — Propiedad transitiva | ✅ 2026-09-14 | ✅ 2026-09-18, prueba 12 |
@@ -422,7 +423,29 @@ y estar mal escrita.
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
 | C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
 
-## ✅ Estado al 2026-09-18: 14 pruebas pasan, 0 fallan, 0 saltadas
+## ✅ Estado al 2026-09-18: 17 pruebas pasan, 0 fallan, 0 saltadas
+
+### Las dos últimas lagunas, cerradas
+
+Revisando los hallazgos originales F1–F6 uno por uno aparecieron dos huecos que
+la cuenta de pruebas no delataba:
+
+**F1 nombraba cuatro operaciones destructivas y ninguna estaba probada.** La
+prueba 2 cubría el borrado de un residuo — una quinta distinta. Las cuatro que la
+auditoría llamó «la vulnerabilidad más explotable del proyecto» (borrar y
+desactivar un servicio, desactivar un residuo, borrar un interés) no las
+ejercitaba nada. Las cubren las pruebas 13, 14 y 15.
+
+La 14 tiene un diseño que conviene entender: los intereses son privados, así que
+el id de uno ajeno **no se puede descubrir desde fuera**. La prueba lo crea con
+la cuenta del comprador, intenta borrarlo con la del proveedor y lo limpia. Eso
+reproduce a un atacante que haya adivinado el id, que es el caso que importa.
+
+**F2 pedía dos defensas y había puesta una.** `residuos_gestion_ambiental` y
+`cumplimiento_transporte` tenían el `WITH CHECK` pero no el `DEFAULT auth.uid()`.
+El agujero estaba cerrado —el `WITH CHECK` rechaza un `user_id` falsificado—,
+pero C2 dice «ambos, no uno», y una asimetría así invita a copiar el patrón
+incompleto. Las cinco tablas lo tienen desde el 2026-09-18.
 
 **El contrato está cerrado.** Las siete cláusulas están aplicadas y verificadas
 —no leyendo el catálogo, sino intentando de verdad cada operación que debe
