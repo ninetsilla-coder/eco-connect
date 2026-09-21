@@ -8,7 +8,14 @@
 import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { listarMiosResumidos } from "../data/residuos.js";
-import { listarGestionDeUsuario, registrarGestion, TIPOS_GESTION } from "../data/cumplimiento.js";
+import {
+  listarGestionDeUsuario,
+  registrarGestion,
+  urlsDeDocumentos,
+  TIPOS_GESTION,
+  BUCKET_GESTION,
+} from "../data/cumplimiento.js";
+import { crearListaDocumentos } from "../ui/documentos.js";
 
 montarNavbar();
 
@@ -70,9 +77,16 @@ function cajaVacia(residuoId) {
   return historial[residuoId];
 }
 
+// Cada llamada se queda con un turno. Firmar las URLs es una ida a la
+// red, y entre que se pide y se resuelve el usuario puede haber
+// cambiado de residuo o de pestaña: sin este guardia, la respuesta
+// vieja pintaría encima de la nueva los documentos de otro registro.
+let turno = 0;
+
 // Se construye con nodos, no con innerHTML: la descripción viene de la
 // base y no debe interpretarse como HTML.
-function mostrarResumen() {
+async function mostrarResumen() {
+  const mio = ++turno;
   resumen.innerHTML = "";
 
   const registros = historial[selectorResiduo?.value]?.[tipoSeleccionado];
@@ -90,17 +104,34 @@ function mostrarResumen() {
     resumen.append(em, document.createElement("br"));
   }
 
-  if (Array.isArray(ultimo.fotos) && ultimo.fotos.length) {
-    const conteo = document.createElement("span");
-    conteo.textContent = `Fotos cargadas: ${ultimo.fotos.length}`;
-    resumen.append(conteo, document.createElement("br"));
-  }
-
   const nota = document.createElement("span");
   nota.style.color = "#9ca3af";
   nota.textContent =
     "(Al guardar, se agregará un nuevo registro a tu historial de gestión ambiental.)";
   resumen.appendChild(nota);
+
+  // Los archivos, al final y en segundo plano: antes solo se decía
+  // "Fotos cargadas: N", así que no había forma de comprobar qué se
+  // había subido. El bucket es privado, así que cada enlace va firmado
+  // y caduca.
+  if (!Array.isArray(ultimo.fotos) || !ultimo.fotos.length) return;
+
+  try {
+    const urls = await urlsDeDocumentos(BUCKET_GESTION, ultimo.fotos);
+    if (mio !== turno) return;
+
+    resumen.insertBefore(
+      crearListaDocumentos(urls, { titulo: "Archivos de este registro:" }),
+      nota
+    );
+  } catch (err) {
+    if (mio !== turno) return;
+    console.error("Error firmando los documentos:", err);
+
+    const aviso = document.createElement("span");
+    aviso.textContent = `No se pudieron abrir los ${ultimo.fotos.length} archivo(s) de este registro.`;
+    resumen.insertBefore(aviso, nota);
+  }
 }
 
 // ==============================================================

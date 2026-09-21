@@ -125,14 +125,56 @@ export async function registrarCumplimiento(usuarioId, datos) {
   return data;
 }
 
+// Lo que el transportista ya registró para un servicio suyo, con las
+// rutas de los archivos. `cumplimiento_propio` lo limita a su dueño; el
+// filtro por user_id es defensa en profundidad.
+//
+// Devuelve el historial completo, del más reciente al más antiguo: cada
+// envío del formulario añade una fila en vez de actualizar la anterior.
+export async function listarCumplimientoDeServicio(usuarioId, servicioId) {
+  const { data, error } = await supabaseClient
+    .from("cumplimiento_transporte")
+    .select(
+      "id, created_at, permisos_urls, certificaciones_urls, seguros_urls, " +
+        "practicas_manejo, practicas_regulaciones, practicas_procedimientos"
+    )
+    .eq("user_id", usuarioId)
+    .eq("servicio_id", servicioId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 // ==============================================================
 // Lectura de archivos
 // ==============================================================
 // Acepta rutas nuevas y URLs completas de filas antiguas: durante la
 // transición conviven las dos formas en la misma columna.
+//
+// Con los buckets ya privados, `referenciar()` firma cada valor y la
+// URL caduca. Se piden al pintar, no se guardan.
 
 export async function urlsDeDocumentos(bucket, valores) {
   if (!valores?.length) return [];
   const urls = await Promise.all(valores.map((v) => referenciar(bucket, v)));
   return urls.filter(Boolean);
+}
+
+// Los tres grupos de un registro de transporte, listos para pintar.
+// Devuelve [{ titulo, urls }, ...] — la forma que espera
+// ui/documentos.js, que no sabe nada de Storage ni de esta tabla.
+export async function documentosDeCumplimiento(registro) {
+  const grupos = [
+    ["Permisos", registro?.permisos_urls],
+    ["Certificaciones", registro?.certificaciones_urls],
+    ["Seguros", registro?.seguros_urls],
+  ];
+
+  return Promise.all(
+    grupos.map(async ([titulo, valores]) => ({
+      titulo,
+      urls: await urlsDeDocumentos(BUCKET_TRANSPORTE, valores),
+    }))
+  );
 }

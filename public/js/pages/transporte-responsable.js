@@ -5,7 +5,13 @@
 import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { listarMisServiciosResumidos } from "../data/transporte.js";
-import { registrarCumplimiento, subirGrupoTransporte } from "../data/cumplimiento.js";
+import {
+  registrarCumplimiento,
+  subirGrupoTransporte,
+  listarCumplimientoDeServicio,
+  documentosDeCumplimiento,
+} from "../data/cumplimiento.js";
+import { crearBloqueDocumentos } from "../ui/documentos.js";
 
 montarNavbar();
 
@@ -28,6 +34,68 @@ function mostrarEstado(texto, clase = "") {
 }
 
 // ==============================================================
+// Lo ya registrado para el servicio elegido
+// ==============================================================
+// Antes esta pantalla solo recibía archivos: se subían permisos,
+// licencias y seguros y no había forma de comprobar qué había quedado
+// guardado, ni de detectar que faltaba uno. Ahora el formulario enseña
+// el último registro del servicio seleccionado.
+//
+// Los enlaces van firmados y caducan: docs-transporte es privado.
+
+const yaRegistrado = document.createElement("div");
+yaRegistrado.id = "cumplimiento-actual";
+yaRegistrado.style.margin = "12px 0";
+yaRegistrado.style.fontSize = "0.85rem";
+formulario?.prepend(yaRegistrado);
+
+// Mismo guardia que en gestión ambiental: firmar es una ida a la red y
+// el usuario puede cambiar de servicio mientras tanto. Sin esto, una
+// respuesta vieja pintaría los documentos de otro servicio.
+let turno = 0;
+
+async function mostrarCumplimientoActual() {
+  const mio = ++turno;
+  yaRegistrado.innerHTML = "";
+
+  const servicioId = selectorServicio?.value;
+  if (!usuario || !servicioId) return;
+
+  try {
+    const registros = await listarCumplimientoDeServicio(usuario.id, servicioId);
+    if (mio !== turno) return;
+
+    if (!registros.length) {
+      const vacio = document.createElement("em");
+      vacio.textContent = "Todavía no has registrado documentación para este servicio.";
+      yaRegistrado.appendChild(vacio);
+      return;
+    }
+
+    const ultimo = registros[0];
+    const grupos = await documentosDeCumplimiento(ultimo);
+    if (mio !== turno) return;
+
+    const titulo = document.createElement("strong");
+    const fecha = ultimo.created_at
+      ? new Date(ultimo.created_at).toLocaleDateString("es-MX")
+      : null;
+    titulo.textContent = fecha
+      ? `Último registro (${fecha}) · ${registros.length} en total:`
+      : `Último registro · ${registros.length} en total:`;
+
+    yaRegistrado.append(titulo, crearBloqueDocumentos(grupos));
+  } catch (err) {
+    if (mio !== turno) return;
+    console.error("Error cargando el cumplimiento del servicio:", err);
+
+    const aviso = document.createElement("em");
+    aviso.textContent = "No se pudo consultar la documentación ya registrada.";
+    yaRegistrado.appendChild(aviso);
+  }
+}
+
+// ==============================================================
 // Arranque
 // ==============================================================
 
@@ -46,6 +114,8 @@ if (!usuario) {
         opcion.textContent = `${servicio.tipo_transporte} – ${servicio.zona_cobertura}`;
         selectorServicio.appendChild(opcion);
       });
+      selectorServicio.addEventListener("change", mostrarCumplimientoActual);
+      await mostrarCumplimientoActual();
     } else {
       const opcion = document.createElement("option");
       opcion.value = "";
@@ -97,8 +167,14 @@ formulario?.addEventListener("submit", async (evento) => {
     });
 
     formulario.reset();
-    if (selectorServicio) selectorServicio.value = "";
+
+    // El reset vacía también el selector. Antes se dejaba así, y el
+    // usuario acababa de subir documentos sin ver ninguna confirmación
+    // de qué había quedado guardado. Se recupera el servicio y se
+    // repinta el panel: ahí está la prueba de que llegó.
+    if (selectorServicio) selectorServicio.value = servicioId;
     mostrarEstado("Documentación guardada correctamente para ese servicio.", "success");
+    await mostrarCumplimientoActual();
   } catch (err) {
     console.error("Error guardando cumplimiento de transporte:", err);
     mostrarEstado(
