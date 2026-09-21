@@ -6,7 +6,14 @@ import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { obtenerServicio } from "../data/transporte.js";
 import { existeInteres, guardarInteres, TIPO_TRANSPORTE } from "../data/intereses.js";
+import {
+  listarMensajesDePublicacion,
+  enviarMensaje,
+  marcarLeidos,
+  nombresDeEmpresas,
+} from "../data/mensajes.js";
 import { crearGaleria, crearMeta, crearDescripcion, crearTitulo } from "../ui/detalle.js";
+import { montarConversacion } from "../ui/conversacion.js";
 
 montarNavbar();
 
@@ -55,7 +62,8 @@ function pintar(servicio) {
 // Arranque
 // ==============================================================
 
-const servicioId = new URLSearchParams(window.location.search).get("id");
+const parametros = new URLSearchParams(window.location.search);
+const servicioId = parametros.get("id");
 
 if (!servicioId) {
   mostrarEstado("No se encontró el servicio solicitado.", "error");
@@ -72,11 +80,64 @@ if (!servicioId) {
       if (layout) layout.style.display = "grid";
       mostrarEstado("");
 
-      botonContactar?.addEventListener("click", () => {
-        mostrarMensaje(
-          "Aquí irá la acción para contactar al proveedor logístico (versión futura)."
-        );
+      // ---------- Conversación con el proveedor logístico ----------
+      // Mismo modelo que en el detalle de residuo: el hilo vive dentro
+      // de la app y ningún correo cruza entre empresas (§7.1).
+      const panelMensajes = document.createElement("div");
+      panelMensajes.id = "conversacion-servicio";
+      principal.appendChild(panelMensajes);
+
+      let conversacionAbierta = false;
+
+      botonContactar?.addEventListener("click", async () => {
+        if (conversacionAbierta) {
+          panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        const { usuario } = await obtenerSesion();
+        if (!usuario) {
+          mostrarMensaje("Debes iniciar sesión para contactar al proveedor.", "error");
+          return;
+        }
+        if (usuario.id === servicio.user_id) {
+          mostrarMensaje("Este servicio es tuyo: verás los mensajes en Mis servicios.");
+          return;
+        }
+
+        conversacionAbierta = true;
+        botonContactar.disabled = true;
+        mostrarMensaje("");
+
+        const nombres = await nombresDeEmpresas([servicio.user_id]).catch(() => ({}));
+
+        await montarConversacion(panelMensajes, {
+          usuarioId: usuario.id,
+          nombre: nombres[servicio.user_id],
+          titulo: `Conversación sobre ${servicio.tipo_transporte || "este servicio"}`,
+          cargar: async () => {
+            const mensajes = await listarMensajesDePublicacion({ servicioId: servicio.id });
+            const sinLeer = mensajes
+              .filter((m) => m.destinatario_id === usuario.id && !m.leido_at)
+              .map((m) => m.id);
+            if (sinLeer.length) await marcarLeidos(sinLeer, usuario.id).catch(() => {});
+            return mensajes;
+          },
+          enviar: (texto) =>
+            enviarMensaje(usuario.id, {
+              servicioId: servicio.id,
+              destinatarioId: servicio.user_id,
+              cuerpo: texto,
+            }),
+        });
+
+        botonContactar.disabled = false;
+        panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+
+      // Quien llega desde "Contactar proveedor logístico" en la lista
+      // ya decidió que quiere escribir: se le abre el hilo directamente.
+      if (parametros.get("contactar") === "1") botonContactar?.click();
 
       botonGuardar?.addEventListener("click", async () => {
         const textoPrevio = botonGuardar.textContent;

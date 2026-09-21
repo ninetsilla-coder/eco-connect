@@ -292,6 +292,42 @@ create policy "catalogo_publico" on public.residuos_publicados
   using (estado = 'disponible' or auth.uid() = user_id);
 ```
 
+### C8 — El contacto vive dentro de la app
+
+Un marketplace tiene que dejar que las dos empresas se hablen. Las dos formas de
+conseguirlo no son equivalentes:
+
+| | Qué implica |
+|---|---|
+| Enseñar el correo del que publica | Cualquier cuenta registrada puede recolectar los correos de todos los proveedores. Es la fuga de C7 con otro nombre. |
+| **Conversar dentro de la app** | Ningún correo cruza entre empresas. Elegida. |
+
+**Contrato:** `mensajes` es la única tabla donde dos empresas comparten datos, y
+lo que comparten es lo que cada una escribe a propósito.
+
+- **Leer** (`mensajes_propios`): solo las dos partes del hilo. No existe "el
+  dueño ve todos los mensajes sobre su residuo": cada conversación es con una
+  empresa concreta y las demás no son asunto suyo.
+- **Escribir** (`mensajes_envia`): firmas con tu `auth.uid()` y el hilo cuelga
+  de una publicación en la que **una de las dos partes es el dueño**. Si el
+  remitente no lo es, el destinatario tiene que serlo — por eso la tabla no
+  puede usarse como chat general entre desconocidos.
+- **Marcar leído** (`mensajes_marca`): solo el destinatario, y **solo la columna
+  `leido_at`**. Sin el `grant update (leido_at)`, esa política dejaría reescribir
+  el `cuerpo` de un mensaje recibido: RLS no filtra columnas, igual que en C3.
+- **Borrar**: no hay política. Un mensaje enviado no se borra desde el
+  navegador; es el registro de lo que se acordó entre dos empresas.
+
+El nombre de la otra empresa sale de `empresas_publicas` (§7.2), la segunda
+aplicación de C7. **El correo no entra ahí**: es justo lo que este diseño existe
+para no repartir.
+
+**Limitación aceptada:** el dueño de una publicación puede escribir primero a
+cualquiera, así que cualquiera puede publicar un residuo y ganar permiso para
+escribir a otros. Es deliberado —un proveedor querrá responder a quien mostró
+interés— y no es peor que el formulario de contacto sin límite de tasa de §10.
+La solución de los dos es la misma: limitar el ritmo.
+
 ### C6 — Storage
 
 Los 5 buckets suben con prefijo `${user.id}/` — `publicar-residuos.html:452`,

@@ -95,11 +95,14 @@ function crearTarjeta(servicio) {
     window.location.href = `comprador-detalle-servicio-transporte.html?id=${servicio.id}`;
   });
 
+  // Igual que en explorar residuos: el hilo vive en el detalle, y
+  // `contactar=1` hace que se abra al llegar.
   const botonContacto = document.createElement("button");
   botonContacto.className = "btn-primary";
   botonContacto.textContent = "Contactar proveedor logístico";
   botonContacto.addEventListener("click", () => {
-    alert("Aquí irá la acción para contactar al proveedor logístico (versión futura).");
+    window.location.href =
+      `comprador-detalle-servicio-transporte.html?id=${servicio.id}&contactar=1`;
   });
 
   acciones.append(botonVer, botonContacto);

@@ -6,7 +6,15 @@ import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { listarMios, cambiarEstadoResiduo } from "../data/residuos.js";
 import { listarGestionDeResiduos, agruparPorResiduo } from "../data/cumplimiento.js";
+import {
+  listarMensajesDePublicacion,
+  enviarMensaje,
+  marcarLeidos,
+  nombresDeEmpresas,
+  agruparEnConversaciones,
+} from "../data/mensajes.js";
 import { crearTarjetaResiduo, pintarMeta } from "../ui/residuo-card.js";
+import { montarBandeja } from "../ui/conversacion.js";
 
 montarNavbar();
 
@@ -80,8 +88,51 @@ function crearTarjeta(residuo, usuarioId) {
     }
   });
 
-  acciones.append(izquierda, botonEditar, botonEstado);
-  item.appendChild(acciones);
+  // ---------- Mensajes de los compradores ----------
+  // Sin esto el contacto sería de una sola dirección: los compradores
+  // escribirían desde el detalle y nadie leería nunca.
+  const bandeja = document.createElement("div");
+  bandeja.className = "bandeja-mensajes";
+  bandeja.style.display = "none";
+
+  const botonMensajes = document.createElement("button");
+  botonMensajes.className = "btn-secondary";
+  botonMensajes.textContent = "Mensajes";
+
+  botonMensajes.addEventListener("click", async () => {
+    const abierta = bandeja.style.display !== "none";
+    bandeja.style.display = abierta ? "none" : "block";
+    if (abierta) return;
+
+    botonMensajes.disabled = true;
+    await montarBandeja(bandeja, {
+      usuarioId,
+      cargar: async () => {
+        const mensajes = await listarMensajesDePublicacion({ residuoId: residuo.id });
+        const conversaciones = agruparEnConversaciones(mensajes, usuarioId);
+        const nombres = await nombresDeEmpresas(
+          conversaciones.map((c) => c.interlocutorId)
+        ).catch(() => ({}));
+
+        const sinLeer = mensajes
+          .filter((m) => m.destinatario_id === usuarioId && !m.leido_at)
+          .map((m) => m.id);
+        if (sinLeer.length) await marcarLeidos(sinLeer, usuarioId).catch(() => {});
+
+        return { conversaciones, nombres };
+      },
+      enviar: (interlocutorId, texto) =>
+        enviarMensaje(usuarioId, {
+          residuoId: residuo.id,
+          destinatarioId: interlocutorId,
+          cuerpo: texto,
+        }),
+    });
+    botonMensajes.disabled = false;
+  });
+
+  acciones.append(izquierda, botonMensajes, botonEditar, botonEstado);
+  item.append(acciones, bandeja);
 
   return item;
 }
@@ -111,7 +162,14 @@ async function pintarBadgesGestion(residuos) {
       }
     });
   } catch (err) {
+    // Sin esto los badges se quedaban en "Cargando gestión
+    // ambiental..." para siempre: el mismo fallo silencioso que ya se
+    // corrigió en los de transporte.
     console.error("Error cargando gestión ambiental:", err);
+
+    document.querySelectorAll(".badge-gestion").forEach((badge) => {
+      badge.textContent = "No se pudo consultar la gestión ambiental";
+    });
   }
 }
 

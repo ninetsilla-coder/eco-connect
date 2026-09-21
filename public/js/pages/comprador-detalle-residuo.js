@@ -6,7 +6,14 @@ import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { obtenerResiduo } from "../data/residuos.js";
 import { existeInteres, guardarInteres, TIPO_RESIDUO } from "../data/intereses.js";
+import {
+  listarMensajesDePublicacion,
+  enviarMensaje,
+  marcarLeidos,
+  nombresDeEmpresas,
+} from "../data/mensajes.js";
 import { crearGaleria, crearMeta, crearDescripcion, crearTitulo } from "../ui/detalle.js";
+import { montarConversacion } from "../ui/conversacion.js";
 
 montarNavbar();
 
@@ -61,7 +68,8 @@ function pintar(residuo) {
 // Arranque
 // ==============================================================
 
-const residuoId = new URLSearchParams(window.location.search).get("id");
+const parametros = new URLSearchParams(window.location.search);
+const residuoId = parametros.get("id");
 
 if (!residuoId) {
   mostrarEstado("No se encontró el residuo solicitado.", "error");
@@ -78,9 +86,66 @@ if (!residuoId) {
       if (layout) layout.style.display = "grid";
       mostrarEstado("");
 
-      botonContactar?.addEventListener("click", () => {
-        mostrarMensaje("Aquí irá la acción para contactar al proveedor (versión futura).");
+      // ---------- Conversación con el proveedor ----------
+      // Antes este botón solo decía "versión futura". El contacto es el
+      // motivo de existir de un marketplace, así que abre el hilo con
+      // quien publicó. Ningún correo cambia de manos: se conversa
+      // dentro de la app (politicas.sql §7.1).
+      const panelMensajes = document.createElement("div");
+      panelMensajes.id = "conversacion-residuo";
+      principal.appendChild(panelMensajes);
+
+      let conversacionAbierta = false;
+
+      botonContactar?.addEventListener("click", async () => {
+        if (conversacionAbierta) {
+          panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        const { usuario } = await obtenerSesion();
+        if (!usuario) {
+          mostrarMensaje("Debes iniciar sesión para contactar al proveedor.", "error");
+          return;
+        }
+        if (usuario.id === residuo.user_id) {
+          mostrarMensaje("Este residuo es tuyo: verás los mensajes en Mis residuos.");
+          return;
+        }
+
+        conversacionAbierta = true;
+        botonContactar.disabled = true;
+        mostrarMensaje("");
+
+        const nombres = await nombresDeEmpresas([residuo.user_id]).catch(() => ({}));
+
+        await montarConversacion(panelMensajes, {
+          usuarioId: usuario.id,
+          nombre: nombres[residuo.user_id],
+          titulo: `Conversación sobre ${residuo.tipo || "este residuo"}`,
+          cargar: async () => {
+            const mensajes = await listarMensajesDePublicacion({ residuoId: residuo.id });
+            const sinLeer = mensajes
+              .filter((m) => m.destinatario_id === usuario.id && !m.leido_at)
+              .map((m) => m.id);
+            if (sinLeer.length) await marcarLeidos(sinLeer, usuario.id).catch(() => {});
+            return mensajes;
+          },
+          enviar: (texto) =>
+            enviarMensaje(usuario.id, {
+              residuoId: residuo.id,
+              destinatarioId: residuo.user_id,
+              cuerpo: texto,
+            }),
+        });
+
+        botonContactar.disabled = false;
+        panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+
+      // Quien llega desde "Contactar proveedor" en la lista ya decidió
+      // que quiere escribir: se le abre el hilo sin un clic de más.
+      if (parametros.get("contactar") === "1") botonContactar?.click();
 
       botonGuardar?.addEventListener("click", async () => {
         const textoPrevio = botonGuardar.textContent;

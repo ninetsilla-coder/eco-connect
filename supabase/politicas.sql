@@ -14,7 +14,55 @@
 
 
 -- ==============================================================
--- 0. Las 9 tablas existen y se llaman como creemos
+-- 0.0 Tablas que crea este script
+-- ==============================================================
+-- `mensajes` es la única tabla que nace aquí; las demás existían antes
+-- y este archivo solo les pone políticas.
+--
+-- Por qué una tabla y no exponer correos: un marketplace necesita que
+-- las dos empresas se hablen, y las dos formas de conseguirlo son
+-- enseñar el correo del otro o conversar dentro de la app. La primera
+-- reabriría la fuga que §4 acaba de cerrar —cualquier cuenta podría
+-- recolectar los correos de todos los proveedores— así que el contacto
+-- vive aquí dentro y NINGÚN correo cruza entre empresas.
+--
+-- Un hilo se identifica por la publicación más las dos partes. La
+-- publicación es un residuo O un servicio, nunca los dos: lo fija la
+-- restricción `una_sola_publicacion`, porque una fila con las dos
+-- referencias en null sería un mensaje que no cuelga de nada y no
+-- aparecería en ninguna conversación.
+
+create table if not exists public.mensajes (
+  id              uuid        primary key default gen_random_uuid(),
+  created_at      timestamptz not null default now(),
+
+  residuo_id      uuid references public.residuos_publicados(id)  on delete cascade,
+  servicio_id     uuid references public.servicios_transporte(id) on delete cascade,
+
+  remitente_id    uuid not null default auth.uid()
+                  references auth.users(id) on delete cascade,
+  destinatario_id uuid not null
+                  references auth.users(id) on delete cascade,
+
+  cuerpo          text not null,
+  leido_at        timestamptz,
+
+  constraint una_sola_publicacion check (
+    (residuo_id is not null) <> (servicio_id is not null)
+  ),
+  constraint cuerpo_no_vacio check (length(btrim(cuerpo)) > 0),
+  constraint no_hablar_solo check (remitente_id <> destinatario_id)
+);
+
+-- Las tres consultas que hace la app: el hilo de una publicación, la
+-- bandeja de cada parte y el recuento de no leídos.
+create index if not exists mensajes_residuo_idx     on public.mensajes (residuo_id, created_at);
+create index if not exists mensajes_servicio_idx    on public.mensajes (servicio_id, created_at);
+create index if not exists mensajes_destinatario_idx on public.mensajes (destinatario_id, leido_at);
+
+
+-- ==============================================================
+-- 0. Las 10 tablas existen y se llaman como creemos
 -- ==============================================================
 -- Los nombres se dedujeron de los select/insert del cliente, así que
 -- pueden no coincidir con el esquema real. Sin esta comprobación, un
@@ -22,10 +70,12 @@
 -- abajo con un error de una sola línea, y quedan tablas sin RLS y sin
 -- que nadie se entere. Esto lo dice todo junto y antes de tocar nada.
 --
--- Son 9 en dos categorías, y la diferencia importa:
+-- Son 10 en dos categorías, y la diferencia importa:
 --
 --   DEL CONTRATO (8)  llevan políticas más abajo; la app las usa.
---   SELLADAS (1)      RLS activo y CERO políticas, a propósito. Ver §9.1.
+--   SELLADAS (2)      RLS activo y CERO políticas, a propósito. Ver §9 y §9.1.
+--
+-- `mensajes` la crea §0.0, así que para cuando se llega aquí ya existe.
 
 do $$
 declare
@@ -36,7 +86,8 @@ declare
     'servicios_transporte',
     'residuos_gestion_ambiental',
     'cumplimiento_transporte',
-    'empresas_registro'
+    'empresas_registro',
+    'mensajes'
   ];
   selladas text[] := array[
     'residuos_transporte_doc',
@@ -81,6 +132,7 @@ alter table public.residuos_gestion_ambiental enable row level security;
 alter table public.cumplimiento_transporte    enable row level security;
 alter table public.transporte_documentacion   enable row level security;
 alter table public.empresas_registro          enable row level security;
+alter table public.mensajes                   enable row level security;
 
 -- Sellada a propósito (§9.1). Ya tenía RLS activo antes de este
 -- script; se repite aquí para que su protección deje de depender de
@@ -107,7 +159,8 @@ declare
     'cumplimiento_transporte',
     'transporte_documentacion',
     'empresas_registro',
-    'residuos_transporte_doc'
+    'residuos_transporte_doc',
+    'mensajes'
   ];
   abiertas text[];
 begin
@@ -159,7 +212,8 @@ declare
     'cumplimiento_transporte',
     'transporte_documentacion',
     'empresas_registro',
-    'residuos_transporte_doc'
+    'residuos_transporte_doc',
+    'mensajes'
   ];
   huerfanas text[];
 begin
@@ -239,7 +293,8 @@ declare
     'cumplimiento_transporte',
     'transporte_documentacion',
     'empresas_registro',
-    'residuos_transporte_doc'
+    'residuos_transporte_doc',
+    'mensajes'
   ];
   politica record;
   borradas int := 0;
@@ -473,6 +528,95 @@ alter table public.intereses
 --     select 1 from public.residuos_publicados r
 --     where r.id = residuo_id and r.user_id = auth.uid()
 --   ));
+
+
+-- ==============================================================
+-- 7.1 mensajes   (conversaciones entre las dos empresas)
+-- ==============================================================
+
+drop policy if exists "mensajes_propios"  on public.mensajes;
+drop policy if exists "mensajes_envia"    on public.mensajes;
+drop policy if exists "mensajes_marca"    on public.mensajes;
+
+-- Lectura: solo las dos partes del hilo. No hay "dueño del residuo ve
+-- todos los mensajes sobre su residuo": cada conversación es con una
+-- empresa concreta y las demás no son asunto suyo.
+create policy "mensajes_propios" on public.mensajes
+  for select to authenticated
+  using (auth.uid() = remitente_id or auth.uid() = destinatario_id);
+
+-- Envío: firmas con tu propio uid y el hilo cuelga de una publicación
+-- en la que UNA de las dos partes es el dueño.
+--
+-- Eso es lo que impide que dos desconocidos usen la tabla como chat
+-- general: si el remitente no es el dueño, el destinatario tiene que
+-- serlo, así que un comprador solo puede escribir a quien publicó.
+--
+-- ⚠️ Limitación conocida y aceptada: el dueño de una publicación puede
+-- escribir primero a cualquiera. Es deliberado —un proveedor querrá
+-- responder a quien mostró interés— pero significa que cualquiera puede
+-- publicar un residuo y con eso ganar permiso para escribir a otros. No
+-- es peor que el formulario de contacto sin límite de tasa que ya hay
+-- (§10), y la solución de los dos es la misma: limitar el ritmo. Está
+-- anotado en CLAUDE.md §7.
+create policy "mensajes_envia" on public.mensajes
+  for insert to authenticated
+  with check (
+    auth.uid() = remitente_id
+    and (
+      exists (
+        select 1 from public.residuos_publicados r
+        where r.id = residuo_id
+          and (r.user_id = remitente_id or r.user_id = destinatario_id)
+      )
+      or exists (
+        select 1 from public.servicios_transporte s
+        where s.id = servicio_id
+          and (s.user_id = remitente_id or s.user_id = destinatario_id)
+      )
+    )
+  );
+
+-- Marcar como leído. Misma trampa que C3: RLS no filtra columnas, así
+-- que sin el grant de abajo esta política dejaría reescribir el CUERPO
+-- de un mensaje recibido. Nadie debe poder editar lo que otro escribió.
+create policy "mensajes_marca" on public.mensajes
+  for update to authenticated
+  using (auth.uid() = destinatario_id)
+  with check (auth.uid() = destinatario_id);
+
+revoke update on public.mensajes from authenticated;
+grant  update (leido_at) on public.mensajes to authenticated;
+
+-- Sin política de DELETE a propósito: un mensaje enviado no se borra
+-- desde el navegador. Es el registro de lo que se acordó entre dos
+-- empresas, y borrarlo unilateralmente destruiría la mitad de una
+-- conversación ajena.
+
+
+-- ==============================================================
+-- 7.2 empresas_publicas   (cómo se llama la otra parte)
+-- ==============================================================
+-- Una conversación necesita un nombre: "Conversación con Peñoles", no
+-- "con 8f3a-...". Pero §4 cerró profiles a `auth.uid() = id`, así que
+-- nadie puede leer el perfil de otra empresa — y eso no se toca.
+--
+-- Es el mismo caso que §8.1, resuelto igual y por la razón de C7: una
+-- vista que selecciona SOLO lo público. Aquí el nombre comercial, que
+-- las empresas ya publican al usar el marketplace. El correo NO entra:
+-- es justo lo que esta arquitectura existe para no repartir.
+--
+-- ⚠️ Añadir `email` a esta vista tiraría por tierra §4 y todo el
+-- modelo de mensajería. Si algún día hace falta un contacto directo,
+-- se pide consentimiento explícito y se registra, no se añade aquí.
+
+create or replace view public.empresas_publicas
+with (security_invoker = false) as
+select p.id, p.company_name
+from public.profiles p;
+
+revoke all on public.empresas_publicas from public;
+grant select on public.empresas_publicas to authenticated;
 
 
 -- ==============================================================

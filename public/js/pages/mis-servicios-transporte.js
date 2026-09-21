@@ -14,6 +14,14 @@ import {
   ESTADO_ACTIVO,
   ESTADO_INACTIVO,
 } from "../data/transporte.js";
+import {
+  listarMensajesDePublicacion,
+  enviarMensaje,
+  marcarLeidos,
+  nombresDeEmpresas,
+  agruparEnConversaciones,
+} from "../data/mensajes.js";
+import { montarBandeja } from "../ui/conversacion.js";
 
 montarNavbar();
 
@@ -40,7 +48,7 @@ function dato(etiqueta, valor) {
 
 // Se construye con nodos en vez de innerHTML: los valores vienen de la
 // base y no deben interpretarse como HTML.
-function crearTarjeta(servicio, cumplimiento) {
+function crearTarjeta(servicio, cumplimiento, usuarioId) {
   const tarjeta = document.createElement("div");
   tarjeta.className = "waste-card";
 
@@ -115,7 +123,51 @@ function crearTarjeta(servicio, cumplimiento) {
     acciones.appendChild(boton);
   });
 
-  tarjeta.appendChild(acciones);
+  // ---------- Mensajes de los compradores ----------
+  // Igual que en Mis residuos: sin esto los compradores escribirían
+  // desde el detalle y nadie leería nunca.
+  const bandeja = document.createElement("div");
+  bandeja.className = "bandeja-mensajes";
+  bandeja.style.display = "none";
+
+  const botonMensajes = document.createElement("button");
+  botonMensajes.className = "btn btn-outline btn-sm btn-mensajes";
+  botonMensajes.textContent = "Mensajes";
+
+  botonMensajes.addEventListener("click", async () => {
+    const abierta = bandeja.style.display !== "none";
+    bandeja.style.display = abierta ? "none" : "block";
+    if (abierta) return;
+
+    botonMensajes.disabled = true;
+    await montarBandeja(bandeja, {
+      usuarioId,
+      cargar: async () => {
+        const mensajes = await listarMensajesDePublicacion({ servicioId: servicio.id });
+        const conversaciones = agruparEnConversaciones(mensajes, usuarioId);
+        const nombres = await nombresDeEmpresas(
+          conversaciones.map((c) => c.interlocutorId)
+        ).catch(() => ({}));
+
+        const sinLeer = mensajes
+          .filter((m) => m.destinatario_id === usuarioId && !m.leido_at)
+          .map((m) => m.id);
+        if (sinLeer.length) await marcarLeidos(sinLeer, usuarioId).catch(() => {});
+
+        return { conversaciones, nombres };
+      },
+      enviar: (interlocutorId, texto) =>
+        enviarMensaje(usuarioId, {
+          servicioId: servicio.id,
+          destinatarioId: interlocutorId,
+          cuerpo: texto,
+        }),
+    });
+    botonMensajes.disabled = false;
+  });
+
+  acciones.appendChild(botonMensajes);
+  tarjeta.append(acciones, bandeja);
   return tarjeta;
 }
 
@@ -157,7 +209,9 @@ if (contenedor) {
 
         contenedor.innerHTML = "";
         servicios.forEach((servicio) => {
-          contenedor.appendChild(crearTarjeta(servicio, cumplimientos[servicio.id]));
+          contenedor.appendChild(
+            crearTarjeta(servicio, cumplimientos[servicio.id], usuario.id)
+          );
         });
 
         // Sin esto, un fallo al consultar pinta "Sin docs" en servicios

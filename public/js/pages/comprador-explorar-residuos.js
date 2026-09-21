@@ -42,11 +42,15 @@ function crearTarjeta(residuo) {
     window.location.href = `comprador-detalle-residuo.html?id=${residuo.id}`;
   });
 
+  // La conversación vive en el detalle, no en la tarjeta: repetir el
+  // hilo en cada resultado de una lista sería ilegible y obligaría a
+  // cargar los mensajes de todos los residuos al abrir la página.
+  // `contactar=1` hace que el detalle abra el hilo al llegar.
   const botonContacto = document.createElement("button");
   botonContacto.className = "btn-primary";
   botonContacto.textContent = "Contactar proveedor";
   botonContacto.addEventListener("click", () => {
-    alert("Aquí irá la acción para contactar al proveedor (versión futura).");
+    window.location.href = `comprador-detalle-residuo.html?id=${residuo.id}&contactar=1`;
   });
 
   acciones.append(botonDetalle, botonContacto);

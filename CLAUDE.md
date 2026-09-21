@@ -143,7 +143,8 @@ los datos son las políticas RLS.
 ### Tablas (9)
 
 `profiles`, `residuos_publicados`, `intereses`, `servicios_transporte`,
-`residuos_gestion_ambiental`, `cumplimiento_transporte`, `empresas_registro`.
+`residuos_gestion_ambiental`, `cumplimiento_transporte`, `empresas_registro`,
+`mensajes` (la crea `politicas.sql` §0.0; es la única que nace de ese script).
 
 **Selladas** (RLS activo, cero políticas, nadie las toca desde el navegador):
 `residuos_transporte_doc` (`politicas.sql` §9.1) y `transporte_documentacion`
@@ -151,16 +152,24 @@ los datos son las políticas RLS.
 
 Columna de propiedad: `user_id` en todas, salvo `profiles`, donde es `id`.
 
-### Vistas (1)
+### Vistas (2)
 
-`transporte_cumplimiento_resumen` (`politicas.sql` §8.1): tres booleanos por
-servicio, para que el comprador vea si un transportista tiene papeles sin
-acceder a las rutas de los documentos.
+| Vista | Expone | Para qué |
+|---|---|---|
+| `transporte_cumplimiento_resumen` (§8.1) | `servicio_id` + 3 booleanos | Que el comprador vea si un transportista tiene papeles, sin acceder a las rutas de los documentos |
+| `empresas_publicas` (§7.2) | `id` + `company_name` | Poner nombre a una conversación, sin abrir `profiles` |
 
-Es la única pieza del esquema que **atraviesa RLS a propósito**
-(`security_invoker = false`), así que su seguridad está en la lista de columnas
-del `select`, no en una política. **Añadirle una columna es un cambio de
-contrato**: lo acotan las comprobaciones 17 y 18 de `verificar:politicas`.
+Las dos **atraviesan RLS a propósito** (`security_invoker = false`): corren con
+los permisos de su dueño. Su seguridad está entera en la lista de columnas del
+`select`, no en una política que alguien pueda revisar.
+
+**Añadir una columna a cualquiera de las dos es un cambio de contrato.** En
+concreto, meter `email` en `empresas_publicas` tiraría por tierra §4 y el modelo
+de mensajería completo. Las comprobaciones 17 y 18 de `verificar:politicas`
+acotan la primera por los dos lados.
+
+Es el patrón de **C7** en CONTRATO-RLS.md: para enseñar un dato de una fila
+ajena se hace una vista con lo público, nunca se relaja la política de la tabla.
 
 ### Buckets (5)
 
@@ -197,9 +206,17 @@ public/js/
   ui/auth-modal.js       modal de login/registro (se inyecta donde falte)
   ui/residuo-card.js     tarjeta de residuo compartida
   ui/detalle.js          bloques de las páginas de detalle
+  ui/documentos.js       enlaces a documentos ya firmados
+  ui/conversacion.js     hilos de mensajes y caja de redacción
   data/<tabla>.js        todas las queries de esa tabla
   pages/<pagina>.js      lo específico de cada página
 ```
+
+`ui/conversacion.js` y `ui/documentos.js` no importan `data` —la capa `ui` no
+consulta— pero sí orquestan un ciclo completo: `montarConversacion()` y
+`montarBandeja()` reciben `cargar` y `enviar` **como funciones**. Así el ciclo
+pintar → enviar → repintar se escribe una vez para las cuatro pantallas que lo
+usan, sin que `ui` sepa qué tabla hay detrás.
 
 Supabase se importa desde esm.sh con **versión exacta** (`@2.116.0`). Con `@2`
 flotante, un cambio upstream rompe el sitio sin que nadie toque el repo. Subirla
@@ -435,6 +452,17 @@ Corregidos en la migración:
   vistas del mismo servicio que se contradecían. Y "Docs OK" salía incluso con
   cero archivos, porque solo se comprobaba que existiera fila. Las dos páginas
   leen ahora la misma vista (§8.1) y con el mismo criterio.
+- **La documentación de cumplimiento se subía a ciegas** (2026-09-21).
+  `urlsDeDocumentos()` existía sin que la llamara nadie: los permisos, licencias
+  y seguros se guardaban y no se mostraban en ningún sitio, así que quien los
+  cargaba no podía comprobar qué había quedado ni notar que faltaba uno. Ahora
+  `gestion-ambiental` y `transporte-responsable` los enlazan, firmados.
+- **El marketplace no conectaba a nadie** (2026-09-21). "Contactar proveedor"
+  decía "versión futura" en los 4 sitios donde aparece. Se resolvió con
+  mensajería interna (§7.1): las dos empresas conversan dentro de la app y
+  **ningún correo cruza de una a otra**. Enseñar el correo del que publica
+  habría sido más rápido, pero reabría una versión de la fuga que acababa de
+  cerrarse en `perfil_lectura`.
 
 Pendientes:
 
@@ -463,10 +491,14 @@ Pendientes:
   Supabase**, no solo cuando cambie el SQL. Los 12 agujeros del 2026-09-17 no los
   introdujo ningún commit — eran políticas creadas a mano desde el panel, y el
   panel sigue ahí.
-- **`urlsDeDocumentos()` es código muerto.** Existe en `data/cumplimiento.js` y no
-  la llama ninguna página: los documentos de cumplimiento se suben y no se
-  muestran en ningún sitio. Ahora que los buckets son privados, la pantalla que
-  acabe mostrándolos **tiene** que usarla — una URL pública ya no resuelve.
+- **Sin límite de tasa en `mensajes`.** El dueño de una publicación puede
+  escribir primero a cualquiera (§7.1), así que cualquiera puede publicar un
+  residuo y con eso ganar permiso para escribir a otros. No es peor que
+  `empresas_registro`, y la solución de los dos es la misma.
+- **Los mensajes no avisan.** No hay notificación por correo ni contador en el
+  navbar: las dos partes tienen que entrar a la publicación para ver si les
+  escribieron. Es la limitación aceptada al elegir mensajería interna sobre
+  repartir correos.
 - **Fuente inexistente en CSS.** `style.css` referencia `"Cy Grotesk Key"` en 12
   reglas y no la sirve nadie: es comercial y no está en Google Fonts, así que
   cae al fallback `system-ui`. La errata de grafía (`"Cy Groteks Key"`, 9 reglas)
@@ -476,13 +508,9 @@ Pendientes:
 - **`empresas_registro` sin límite de tasa**: el formulario es spameable.
 - **Botón "Editar" sin función** en `mis-residuos` y `mis-servicios-transporte`.
   En `mis-servicios-transporte` no hay ni handler: el botón no hace nada.
-- **"Contactar proveedor" no hace nada** en los 4 sitios donde aparece. Es el CTA
-  central del marketplace: hoy un comprador puede explorar, filtrar y guardar
-  intereses, pero no hay forma de que las dos empresas se hablen.
-- **Fallos silenciosos.** De 25 `catch` en `pages/`, 21 avisan al usuario.
-  Quedan `profile.js:79` (si falla la carga, el perfil se queda en blanco sin
-  explicación) y `mis-residuos.js:113` (el badge de gestión ambiental se queda
-  en "Cargando..." para siempre). Los otros dos se cerraron el 2026-09-21.
+- **Fallo silencioso en `profile.js`.** Si falla la carga del perfil, la página
+  se queda en blanco sin explicación. Es el último `catch` de `pages/` que no
+  avisa al usuario; los otros cuatro se cerraron el 2026-09-21.
 - **`alert()` y `confirm()`** en 8 sitios, conviviendo con el patrón
   `mostrarEstado()` del resto. Bloquean el hilo y son inconsistentes.
 - **Accesibilidad**: un solo `aria-label` en todo el sitio (la hamburguesa).
