@@ -143,13 +143,24 @@ los datos son las políticas RLS.
 ### Tablas (9)
 
 `profiles`, `residuos_publicados`, `intereses`, `servicios_transporte`,
-`residuos_gestion_ambiental`, `cumplimiento_transporte`,
-`transporte_documentacion` (aparece una sola vez, posiblemente en desuso),
-`residuos_transporte_doc` (**sellada**: existe en la base, no la usa nadie —
-decisión de conservarla en `politicas.sql` §9.1),
-`empresas_registro`.
+`residuos_gestion_ambiental`, `cumplimiento_transporte`, `empresas_registro`.
+
+**Selladas** (RLS activo, cero políticas, nadie las toca desde el navegador):
+`residuos_transporte_doc` (`politicas.sql` §9.1) y `transporte_documentacion`
+(§9, sellada el 2026-09-21 — ver §7).
 
 Columna de propiedad: `user_id` en todas, salvo `profiles`, donde es `id`.
+
+### Vistas (1)
+
+`transporte_cumplimiento_resumen` (`politicas.sql` §8.1): tres booleanos por
+servicio, para que el comprador vea si un transportista tiene papeles sin
+acceder a las rutas de los documentos.
+
+Es la única pieza del esquema que **atraviesa RLS a propósito**
+(`security_invoker = false`), así que su seguridad está en la lista de columnas
+del `select`, no en una política. **Añadirle una columna es un cambio de
+contrato**: lo acotan las comprobaciones 17 y 18 de `verificar:politicas`.
 
 ### Buckets (5)
 
@@ -411,6 +422,19 @@ Corregidos en la migración:
   su texto caía a `system-ui` mientras el resto del sitio usaba Poppins. Lo
   detectó `dependencias.test.js` al exigir una sola hoja de fuentes en las 13
   páginas; no estaba en ninguna auditoría previa.
+- **Fuga de correos en `perfil_lectura`** (2026-09-21). La política era
+  `using (true)` con un comentario que prometía "los ajenos solo por su nombre
+  público" — pero RLS no filtra columnas, así que cualquier sesión podía hacer
+  `select("*")` sobre `profiles` y llevarse el correo de todas las empresas. Es
+  la misma trampa que C3 cierra para el `UPDATE`, colada en el `SELECT`.
+- **Las dos mitades del cumplimiento de transporte hablaban con tablas
+  distintas** (2026-09-21). El formulario escribía en `cumplimiento_transporte`;
+  el badge del comprador leía `transporte_documentacion`, donde no escribe nadie.
+  Un transportista subía todos sus papeles y los compradores seguían viendo
+  "Sin documentación ✗ ✗ ✗", mientras él veía "Docs OK" en su propia página: dos
+  vistas del mismo servicio que se contradecían. Y "Docs OK" salía incluso con
+  cero archivos, porque solo se comprobaba que existiera fila. Las dos páginas
+  leen ahora la misma vista (§8.1) y con el mismo criterio.
 
 Pendientes:
 
@@ -450,5 +474,16 @@ Pendientes:
   lista y la prueba dirá si queda alguna regla suelta.
 - **`empresas_registro` sin límite de tasa**: el formulario es spameable.
 - **Botón "Editar" sin función** en `mis-residuos` y `mis-servicios-transporte`.
-- **`transporte_documentacion`**: solo se lee, nadie escribe en ella. Decidir si
-  sigue en uso.
+  En `mis-servicios-transporte` no hay ni handler: el botón no hace nada.
+- **"Contactar proveedor" no hace nada** en los 4 sitios donde aparece. Es el CTA
+  central del marketplace: hoy un comprador puede explorar, filtrar y guardar
+  intereses, pero no hay forma de que las dos empresas se hablen.
+- **Fallos silenciosos.** De 25 `catch` en `pages/`, 21 avisan al usuario.
+  Quedan `profile.js:79` (si falla la carga, el perfil se queda en blanco sin
+  explicación) y `mis-residuos.js:113` (el badge de gestión ambiental se queda
+  en "Cargando..." para siempre). Los otros dos se cerraron el 2026-09-21.
+- **`alert()` y `confirm()`** en 8 sitios, conviviendo con el patrón
+  `mostrarEstado()` del resto. Bloquean el hilo y son inconsistentes.
+- **Accesibilidad**: un solo `aria-label` en todo el sitio (la hamburguesa).
+  Sin `aria-live` en los `.form-status`, un lector de pantalla no anuncia
+  "Guardando..." ni los errores.

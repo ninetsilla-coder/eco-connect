@@ -234,6 +234,53 @@ create policy "gestion_sobre_residuo_propio" on public.residuos_gestion_ambienta
 - `intereses` es privado del comprador. Pendiente de decisión de producto: si el
   proveedor debe ver quién se interesó en su residuo, hace falta una política
   adicional acotada a las filas que apuntan a residuos suyos.
+- `profiles` se lee **solo a sí mismo** (`auth.uid() = id`). Ver C7.
+
+### C7 — Exponer un dato sin exponer su fila
+
+Dos veces ha aparecido la misma necesidad: enseñar *algo* de una fila ajena sin
+enseñarla entera. Y las dos veces la solución equivocada es la misma, porque
+parece la obvia:
+
+> **`using (true)` no significa "solo lo público".** RLS decide qué FILAS se ven,
+> nunca qué COLUMNAS. Una política permisiva de `SELECT` entrega la fila completa
+> a cualquiera que pida `select=*`.
+
+**Caso 1 — `profiles`.** La política era `using (true)` con un comentario que
+prometía "los ajenos solo por su nombre público". Cualquier sesión podía leer el
+correo de todas las empresas registradas. Cerrada a `auth.uid() = id`, que es lo
+que la app necesita: sus tres lecturas filtran ya por el id propio.
+
+**Caso 2 — documentación de transporte.** El comprador necesita saber si un
+transportista tiene papeles antes de contratarlo, pero `cumplimiento_transporte`
+guarda las rutas de permisos, licencias y seguros. Abrirla habría repetido el
+caso 1 con documentación regulatoria.
+
+**Contrato:** cuando haga falta exponer un dato derivado de filas ajenas, se hace
+con una **vista** que seleccione solo lo público, nunca relajando la política de
+la tabla.
+
+```sql
+create or replace view public.transporte_cumplimiento_resumen
+with (security_invoker = false) as
+select c.servicio_id,
+       bool_or(c.permisos_urls        is not null) as tiene_permisos,
+       bool_or(c.certificaciones_urls is not null) as tiene_certificaciones,
+       bool_or(c.seguros_urls         is not null) as tiene_seguros
+from public.cumplimiento_transporte c
+group by c.servicio_id;
+
+grant select on public.transporte_cumplimiento_resumen to anon, authenticated;
+```
+
+`security_invoker = false` es el mecanismo, no un descuido: la vista corre con
+los permisos de su dueño y por eso atraviesa la RLS de la tabla base.
+
+**Consecuencia:** es la única pieza del esquema sin política que la respalde, así
+que su seguridad vive entera en la lista de columnas del `select`. Las pruebas 17
+y 18 de §5 la acotan por los dos lados — que no devuelva las rutas, y que el
+comprador sí pueda leerla. Añadir una columna a esa vista es un cambio de
+contrato.
 
 ```sql
 create policy "lead_anonimo" on public.empresas_registro
@@ -584,8 +631,12 @@ aplicación, no de políticas:
   perfil sin rol es un perfil que `mi_rol()` no puede clasificar, así que esto
   toca el contrato de lado.
 - **Versión flotante de `@supabase/supabase-js@2`** cargada por CDN.
-- **`transporte_documentacion`**: aparece una sola vez
-  (`comprador-servicios-transporte.html:443`) y no se le detectó columna de
-  propiedad. Requiere decidir si sigue en uso antes de escribirle política.
+- ~~**`transporte_documentacion`**: requiere decidir si sigue en uso.~~
+  **Decidido el 2026-09-21: no lo está.** Nadie escribe nunca en ella; el
+  formulario de transporte responsable guarda en `cumplimiento_transporte`, con
+  otras columnas y otro vocabulario. El badge del comprador la leía, así que
+  salía siempre en "Sin documentación" por mucho que el transportista subiera
+  sus papeles. El cliente ahora lee la vista de C7 y la tabla queda **sellada**
+  (RLS activo, cero políticas) como `residuos_transporte_doc`.
 - **Sin límite de tasa** en `empresas_registro`: el formulario es spameable
   aunque las políticas sean correctas.

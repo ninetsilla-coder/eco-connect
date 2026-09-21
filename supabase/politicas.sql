@@ -36,11 +36,11 @@ declare
     'servicios_transporte',
     'residuos_gestion_ambiental',
     'cumplimiento_transporte',
-    'transporte_documentacion',
     'empresas_registro'
   ];
   selladas text[] := array[
-    'residuos_transporte_doc'
+    'residuos_transporte_doc',
+    'transporte_documentacion'
   ];
   faltan text[];
 begin
@@ -542,17 +542,75 @@ alter table public.cumplimiento_transporte
 
 
 -- ==============================================================
--- 9. transporte_documentacion
+-- 8.1 Qué servicios tienen documentación, sin enseñar cuál
 -- ==============================================================
--- Se lee en comprador-servicios-transporte.html:443 para marcar qué
--- servicios tienen documentación. No se le detectó columna de
--- propiedad: solo lectura hasta decidir si sigue en uso (CLAUDE.md §3).
+-- El comprador necesita saber si un transportista tiene sus papeles en
+-- regla antes de contratarlo. Pero `cumplimiento_propio` (§8) restringe
+-- cumplimiento_transporte a su dueño, y con razón: ahí están las rutas
+-- de permisos, licencias y seguros, documentación regulatoria que no es
+-- asunto de los demás.
+--
+-- La salida NO es abrir la tabla con `using (true)`. Eso es exactamente
+-- la trampa que §4 acaba de cerrar en profiles: RLS no filtra columnas,
+-- así que "solo para ver si tiene papeles" acabaría entregando las
+-- rutas de los documentos de todas las empresas.
+--
+-- Se expone lo mínimo con una vista: tres booleanos por servicio. Ni
+-- rutas, ni user_id, ni el texto de las prácticas.
+--
+-- `security_invoker = false` es deliberado y es el mecanismo: la vista
+-- se ejecuta con los permisos de su dueño, así que atraviesa la RLS de
+-- la tabla base. Por eso la seguridad de esta sección está en QUÉ
+-- columnas devuelve el select, no en una política. Es también el
+-- default en PostgreSQL 15+, pero se escribe explícito: si algún día
+-- cambia el default, este archivo dice qué se quería.
+--
+-- Agrega con bool_or porque cada envío del formulario inserta una fila
+-- nueva (es un historial, no un update): un transportista puede subir
+-- los permisos un día y los seguros otro.
 
-drop policy if exists "documentacion_lectura" on public.transporte_documentacion;
+create or replace view public.transporte_cumplimiento_resumen
+with (security_invoker = false) as
+select
+  c.servicio_id,
+  bool_or(c.permisos_urls        is not null) as tiene_permisos,
+  bool_or(c.certificaciones_urls is not null) as tiene_certificaciones,
+  bool_or(c.seguros_urls         is not null) as tiene_seguros
+from public.cumplimiento_transporte c
+group by c.servicio_id;
 
-create policy "documentacion_lectura" on public.transporte_documentacion
-  for select to anon, authenticated
-  using (true);
+revoke all on public.transporte_cumplimiento_resumen from public;
+grant select on public.transporte_cumplimiento_resumen to anon, authenticated;
+
+
+-- ==============================================================
+-- 9. transporte_documentacion   — SELLADA A PROPÓSITO
+-- ==============================================================
+-- Hasta ahora esta tabla tenía `documentacion_lectura` con
+-- `using (true)`, creada porque comprador-servicios-transporte le pedía
+-- los datos para pintar los badges de documentación.
+--
+-- El problema: NADIE ESCRIBE NUNCA EN ELLA. El formulario de transporte
+-- responsable guarda en cumplimiento_transporte (§8), con otras
+-- columnas y otro vocabulario:
+--
+--   escribe:  permisos_urls · certificaciones_urls · seguros_urls
+--   leía:     tipo ∈ (permiso, licencia, bitacora)
+--
+-- Las dos mitades de la función hablaban con tablas distintas. El
+-- efecto era que un transportista subía toda su documentación y los
+-- compradores seguían viendo "Sin documentación ✗ ✗ ✗", mientras el
+-- propio transportista veía "Docs OK" en su página. Dos vistas del
+-- mismo servicio que se contradecían.
+--
+-- DECISIÓN: la fuente de verdad es cumplimiento_transporte. El cliente
+-- ahora lee la vista de §8.1, y esta tabla queda sellada igual que
+-- §9.1: RLS activo y CERO políticas. La política anterior se borra en
+-- §1.3 junto con las demás y aquí no se recrea ninguna.
+--
+-- No se borra la tabla por si contiene datos de alguna prueba anterior.
+-- Si algún día se confirma que está vacía, el borrado es limpio: ya no
+-- queda código que la nombre.
 
 
 -- ==============================================================
@@ -771,10 +829,11 @@ union all
 -- RLS activo y cero políticas no es seguridad: es un cierre total.
 -- La tabla deja de responder y la página que la usa se queda vacía.
 --
--- Excepción declarada: residuos_transporte_doc está sellada a
--- propósito (§9.1). Se excluye aquí para que cada fila de este
--- diagnóstico siga siendo un problema de verdad; un aviso permanente
--- que hay que aprender a ignorar acaba tapando los que sí importan.
+-- Excepciones declaradas: residuos_transporte_doc (§9.1) y
+-- transporte_documentacion (§9) están selladas a propósito. Se excluyen
+-- aquí para que cada fila de este diagnóstico siga siendo un problema de
+-- verdad; un aviso permanente que hay que aprender a ignorar acaba
+-- tapando los que sí importan.
 select 'RLS SIN NINGUNA POLITICA',
        c.relname::text,
        'Nadie puede leer ni escribir; la app verá la tabla vacía'
@@ -782,7 +841,7 @@ from pg_class c
 where c.relnamespace = 'public'::regnamespace
   and c.relkind = 'r'
   and c.relrowsecurity
-  and c.relname <> all(array['residuos_transporte_doc'])
+  and c.relname <> all(array['residuos_transporte_doc', 'transporte_documentacion'])
   and not exists (
     select 1 from pg_policies p
     where p.schemaname = 'public' and p.tablename = c.relname

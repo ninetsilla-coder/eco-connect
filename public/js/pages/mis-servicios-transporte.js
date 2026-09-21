@@ -8,10 +8,12 @@ import {
   listarMisServicios,
   cambiarEstadoServicio,
   eliminarServicio,
+  listarCumplimientoDeServicios,
+  agruparCumplimiento,
+  resumirCumplimiento,
   ESTADO_ACTIVO,
   ESTADO_INACTIVO,
 } from "../data/transporte.js";
-import { listarCumplimientoDeUsuario } from "../data/cumplimiento.js";
 
 montarNavbar();
 
@@ -38,7 +40,7 @@ function dato(etiqueta, valor) {
 
 // Se construye con nodos en vez de innerHTML: los valores vienen de la
 // base y no deben interpretarse como HTML.
-function crearTarjeta(servicio, tieneDocumentos) {
+function crearTarjeta(servicio, cumplimiento) {
   const tarjeta = document.createElement("div");
   tarjeta.className = "waste-card";
 
@@ -57,9 +59,20 @@ function crearTarjeta(servicio, tieneDocumentos) {
   titulo.className = "waste-type";
   titulo.textContent = servicio.tipo_transporte ?? "Servicio sin nombre";
 
+  // Antes bastaba con que existiera una fila de cumplimiento para decir
+  // "Docs OK", aunque no llevara un solo archivo: el formulario permite
+  // guardar solo las prácticas de manejo. Ahora se mira qué hay de
+  // verdad, y con el mismo criterio que ve el comprador.
+  const { detalle, completo, alguno } = resumirCumplimiento(cumplimiento);
+
   const insignia = document.createElement("span");
-  insignia.className = `badge ${tieneDocumentos ? "badge-success" : "badge-warning"}`;
-  insignia.textContent = tieneDocumentos ? "Docs OK" : "Sin docs";
+  insignia.className = `badge ${completo ? "badge-success" : "badge-warning"}`;
+  insignia.title = detalle;
+  insignia.textContent = completo
+    ? "Docs OK"
+    : alguno
+    ? "Docs incompletos"
+    : "Sin docs";
 
   cabecera.append(titulo, insignia);
   tarjeta.appendChild(cabecera);
@@ -129,19 +142,30 @@ if (contenedor) {
         contenedor.appendChild(vacio);
         mostrarEstado("");
       } else {
-        let conDocumentos = new Set();
+        // Misma fuente que ve el comprador (la vista de politicas.sql
+        // §8.1), para que las dos páginas no puedan contradecirse.
+        let cumplimientos = {};
+        let fallo = false;
         try {
-          const cumplimientos = await listarCumplimientoDeUsuario(usuario.id);
-          conDocumentos = new Set(cumplimientos.map((c) => c.servicio_id));
+          cumplimientos = agruparCumplimiento(
+            await listarCumplimientoDeServicios(servicios.map((s) => s.id))
+          );
         } catch (err) {
           console.error("Error obteniendo cumplimientos:", err);
+          fallo = true;
         }
 
         contenedor.innerHTML = "";
         servicios.forEach((servicio) => {
-          contenedor.appendChild(crearTarjeta(servicio, conDocumentos.has(servicio.id)));
+          contenedor.appendChild(crearTarjeta(servicio, cumplimientos[servicio.id]));
         });
-        mostrarEstado("");
+
+        // Sin esto, un fallo al consultar pinta "Sin docs" en servicios
+        // que sí tienen papeles: peor que no decir nada.
+        mostrarEstado(
+          fallo ? "No se pudo consultar el estado de la documentación." : "",
+          fallo ? "error" : ""
+        );
       }
 
       // ---------- Acciones ----------

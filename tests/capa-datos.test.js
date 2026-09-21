@@ -12,7 +12,11 @@ import assert from "node:assert/strict";
 import { reiniciar, registro, programar, ultimaConsulta } from "./dobles/supabase.js";
 
 import { agruparPorResiduo } from "../public/js/data/cumplimiento.js";
-import { agruparDocumentacion } from "../public/js/data/transporte.js";
+import {
+  agruparCumplimiento,
+  resumirCumplimiento,
+  listarCumplimientoDeServicios,
+} from "../public/js/data/transporte.js";
 import { etiquetaRol, actualizarPerfil } from "../public/js/data/perfiles.js";
 import {
   guardarInteres,
@@ -186,14 +190,99 @@ describe("agruparPorResiduo", () => {
   });
 });
 
-describe("agruparDocumentacion", () => {
-  test("agrupa por servicio", () => {
-    const mapa = agruparDocumentacion([
-      { servicio_transporte_id: "s-1", tipo: "permiso" },
-      { servicio_transporte_id: "s-1", tipo: "licencia" },
+// ==============================================================
+// Documentación de transporte
+// ==============================================================
+// Regresión de un desajuste que duró meses: el formulario de transporte
+// responsable escribe en `cumplimiento_transporte`, pero el badge del
+// comprador leía `transporte_documentacion`, una tabla en la que no
+// escribe nadie. Un transportista subía todos sus papeles y el
+// comprador seguía viendo "Sin documentación", mientras el propio
+// transportista veía "Docs OK" en su página.
+//
+// Ninguna de las dos consultaba la tabla que había que consultar, así
+// que la prueba fija la FUENTE además del resultado.
+
+describe("de dónde sale la documentación de transporte", () => {
+  test("se lee la vista de resumen, no la tabla sellada", async () => {
+    await listarCumplimientoDeServicios(["s-1"]);
+
+    const consulta = ultimaConsulta();
+    assert.equal(consulta.tabla, "transporte_cumplimiento_resumen");
+  });
+
+  test("nunca se consulta transporte_documentacion", async () => {
+    await listarCumplimientoDeServicios(["s-1"]);
+
+    const tablas = registro.consultas.map((c) => c.tabla);
+    assert.equal(
+      tablas.includes("transporte_documentacion"),
+      false,
+      "esa tabla está sellada en politicas.sql §9: nadie escribe en ella"
+    );
+  });
+
+  test("sin servicios no se consulta nada", async () => {
+    await listarCumplimientoDeServicios([]);
+    assert.equal(registro.consultas.length, 0);
+  });
+
+  test("agrupa cada fila por su servicio", () => {
+    const mapa = agruparCumplimiento([
+      { servicio_id: "s-1", tiene_permisos: true },
+      { servicio_id: "s-2", tiene_seguros: true },
     ]);
 
-    assert.equal(mapa["s-1"].size, 2);
-    assert.equal(mapa["s-2"], undefined);
+    assert.equal(mapa["s-1"].tiene_permisos, true);
+    assert.equal(mapa["s-2"].tiene_seguros, true);
+    assert.equal(mapa["s-3"], undefined);
+  });
+});
+
+describe("resumirCumplimiento", () => {
+  const COMPLETO = {
+    tiene_permisos: true,
+    tiene_certificaciones: true,
+    tiene_seguros: true,
+  };
+
+  test("con los tres documentos está completo", () => {
+    const r = resumirCumplimiento(COMPLETO);
+
+    assert.equal(r.completo, true);
+    assert.equal(r.alguno, true);
+    assert.equal(r.detalle, "Permisos ✓ · Certificaciones ✓ · Seguros ✓");
+  });
+
+  test("con algunos documentos no está completo, pero tiene alguno", () => {
+    const r = resumirCumplimiento({ ...COMPLETO, tiene_seguros: false });
+
+    assert.equal(r.completo, false);
+    assert.equal(r.alguno, true);
+    assert.match(r.detalle, /Seguros ✗/);
+  });
+
+  // Este es el que distingue las dos situaciones que antes se confundían.
+  test("sin fila, no hay documentación: ni completa ni parcial", () => {
+    const r = resumirCumplimiento(undefined);
+
+    assert.equal(r.completo, false);
+    assert.equal(r.alguno, false);
+    assert.equal(r.detalle, "Permisos ✗ · Certificaciones ✗ · Seguros ✗");
+  });
+
+  // Antes bastaba con que existiera una fila para decir "Docs OK": el
+  // formulario permite guardar solo las prácticas de manejo, sin un solo
+  // archivo adjunto, y eso ya pintaba el badge verde.
+  test("una fila sin ningún archivo no cuenta como documentación", () => {
+    const r = resumirCumplimiento({
+      servicio_id: "s-1",
+      tiene_permisos: false,
+      tiene_certificaciones: false,
+      tiene_seguros: false,
+    });
+
+    assert.equal(r.alguno, false, "una fila vacía no es documentación");
+    assert.equal(r.completo, false);
   });
 });

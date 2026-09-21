@@ -135,28 +135,62 @@ export async function eliminarServicio(id, usuarioId) {
 }
 
 // ==============================================================
-// transporte_documentacion (solo lectura)
+// Documentación de cumplimiento: qué tiene cada servicio
 // ==============================================================
+// Lee la vista transporte_cumplimiento_resumen (politicas.sql §8.1),
+// no la tabla. La tabla guarda las rutas de permisos, licencias y
+// seguros —documentación regulatoria ajena— y `cumplimiento_propio`
+// la restringe a su dueño. La vista devuelve solo tres booleanos por
+// servicio, que es lo único que necesita un badge.
+//
+// Antes esto leía `transporte_documentacion`, una tabla en la que no
+// escribe nadie: el formulario de transporte responsable guarda en
+// cumplimiento_transporte. Los badges del comprador salían siempre en
+// "Sin documentación" por mucho que el transportista subiera sus
+// papeles. Esa tabla queda sellada en politicas.sql §9.
 
-export async function listarDocumentacion(idsServicios) {
-  let consulta = supabaseClient
-    .from("transporte_documentacion")
-    .select("servicio_transporte_id, tipo");
+export const TIPOS_DOCUMENTO = [
+  ["Permisos", "tiene_permisos"],
+  ["Certificaciones", "tiene_certificaciones"],
+  ["Seguros", "tiene_seguros"],
+];
 
-  if (idsServicios?.length) {
-    consulta = consulta.in("servicio_transporte_id", idsServicios);
-  }
+export async function listarCumplimientoDeServicios(idsServicios) {
+  if (!idsServicios?.length) return [];
 
-  const { data, error } = await consulta;
+  const { data, error } = await supabaseClient
+    .from("transporte_cumplimiento_resumen")
+    .select("servicio_id, tiene_permisos, tiene_certificaciones, tiene_seguros")
+    .in("servicio_id", idsServicios);
+
   if (error) throw error;
   return data ?? [];
 }
 
-// Devuelve { [servicioId]: Set<tipo> }.
-export function agruparDocumentacion(filas) {
+// Devuelve { [servicioId]: { tiene_permisos, ... } }.
+export function agruparCumplimiento(filas) {
   const mapa = {};
-  filas.forEach(({ servicio_transporte_id, tipo }) => {
-    (mapa[servicio_transporte_id] ??= new Set()).add(tipo);
+  filas.forEach((fila) => {
+    mapa[fila.servicio_id] = fila;
   });
   return mapa;
+}
+
+// Resume una fila de la vista para pintarla.
+//
+// `null` significa "este servicio no tiene ninguna fila": distinto de
+// tenerla con los tres campos en false, que no debería ocurrir pero se
+// trata igual. Un servicio sin documentación NO es un servicio con
+// documentación incompleta, y el badge lo dice distinto.
+export function resumirCumplimiento(fila) {
+  const presentes = TIPOS_DOCUMENTO.map(([, clave]) => Boolean(fila?.[clave]));
+
+  return {
+    presentes,
+    detalle: TIPOS_DOCUMENTO.map(
+      ([etiqueta], i) => `${etiqueta} ${presentes[i] ? "✓" : "✗"}`
+    ).join(" · "),
+    completo: presentes.every(Boolean),
+    alguno: presentes.some(Boolean),
+  };
 }

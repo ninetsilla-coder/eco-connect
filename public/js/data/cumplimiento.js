@@ -75,15 +75,11 @@ export async function registrarGestion(usuarioId, { residuoId, tipo, descripcion
 // Cumplimiento de transporte (logística)
 // ==============================================================
 
-export async function listarCumplimientoDeUsuario(usuarioId) {
-  const { data, error } = await supabaseClient
-    .from("cumplimiento_transporte")
-    .select("servicio_id")
-    .eq("user_id", usuarioId);
-
-  if (error) throw error;
-  return data ?? [];
-}
+// La lectura de "qué documentación tiene cada servicio" NO vive aquí:
+// está en data/transporte.js, contra la vista transporte_cumplimiento_resumen
+// (politicas.sql §8.1). Esta tabla guarda las rutas de los documentos y
+// `cumplimiento_propio` la restringe a su dueño, así que un comprador
+// nunca podrá leerla — ni debe.
 
 // Sube un grupo de archivos a su carpeta. Un archivo que falle no
 // aborta el resto: se registra y se sigue, como hacía la página.

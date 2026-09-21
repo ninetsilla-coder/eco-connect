@@ -5,8 +5,9 @@
 import { montarNavbar } from "../ui/navbar.js";
 import {
   buscarActivos,
-  listarDocumentacion,
-  agruparDocumentacion,
+  listarCumplimientoDeServicios,
+  agruparCumplimiento,
+  resumirCumplimiento,
 } from "../data/transporte.js";
 
 montarNavbar();
@@ -17,12 +18,6 @@ const vacio = document.getElementById("servicios-empty");
 const filtroTipo = document.getElementById("filtro-tipo-transporte");
 const filtroZona = document.getElementById("filtro-zona");
 const botonFiltros = document.getElementById("btn-aplicar-filtros");
-
-const DOCUMENTOS = [
-  ["Permiso", "permiso"],
-  ["Licencia", "licencia"],
-  ["Bitácora", "bitacora"],
-];
 
 function mostrarEstado(texto) {
   if (estadoLista) estadoLista.textContent = texto;
@@ -120,30 +115,33 @@ async function pintarBadgesDocumentacion() {
   const ids = Array.from(insignias).map((b) => b.dataset.servicioId);
 
   try {
-    const mapa = agruparDocumentacion(await listarDocumentacion(ids));
+    const mapa = agruparCumplimiento(await listarCumplimientoDeServicios(ids));
 
     insignias.forEach((insignia) => {
-      const tipos = mapa[insignia.dataset.servicioId];
-      const presentes = DOCUMENTOS.map(([, clave]) => tipos?.has(clave) ?? false);
-      const resumen = DOCUMENTOS.map(
-        ([etiqueta], i) => `${etiqueta} ${presentes[i] ? "✓" : "✗"}`
-      ).join(" · ");
+      const fila = mapa[insignia.dataset.servicioId];
+      const { detalle, completo, alguno } = resumirCumplimiento(fila);
 
       insignia.classList.remove("ok", "parcial", "sin");
 
-      if (!tipos) {
-        insignia.textContent = `Sin documentación · ${resumen}`;
+      if (!alguno) {
+        insignia.textContent = `Sin documentación · ${detalle}`;
         insignia.classList.add("sin");
-      } else if (presentes.every(Boolean)) {
-        insignia.textContent = `Documentación completa · ${resumen}`;
+      } else if (completo) {
+        insignia.textContent = `Documentación completa · ${detalle}`;
         insignia.classList.add("ok");
       } else {
-        insignia.textContent = `Documentación parcial · ${resumen}`;
+        insignia.textContent = `Documentación parcial · ${detalle}`;
         insignia.classList.add("parcial");
       }
     });
   } catch (err) {
+    // Si esto falla, los badges se quedarían en "Cargando documentación..."
+    // para siempre. Mejor decir que no se sabe que mentir por omisión.
     console.error("Error cargando documentación de transporte:", err);
+    insignias.forEach((insignia) => {
+      insignia.classList.remove("ok", "parcial", "sin");
+      insignia.textContent = "No se pudo consultar la documentación";
+    });
   }
 }
 

@@ -638,6 +638,56 @@ await comprobar("16. un usuario NO puede leer el perfil de otra empresa", async 
   };
 });
 
+// --- 17 y 18 — la vista de resumen expone lo justo ---
+// `transporte_cumplimiento_resumen` (§8.1) es la única pieza del
+// esquema que ATRAVIESA RLS a propósito: se ejecuta con los permisos de
+// su dueño para que un comprador pueda ver si un transportista tiene
+// papeles, sin darle acceso a la tabla donde están las rutas.
+//
+// Eso la convierte en el punto más delicado del contrato: aquí no hay
+// política que revise nadie, la seguridad está en QUÉ columnas devuelve
+// el select. Si alguien añade una columna a la vista, esta comprobación
+// es lo único que lo detecta.
+//
+// Van en pareja y las dos hacen falta: la 17 acota por arriba (no
+// enseña de más) y la 18 por abajo (enseña algo). Sin la 18, revocar el
+// grant dejaría la 17 en verde con los badges rotos para todos.
+
+await comprobar("17. la vista de cumplimiento NO expone las rutas de los documentos", async () => {
+  const columnas = ["permisos_urls", "certificaciones_urls", "seguros_urls", "user_id"];
+  const expuestas = [];
+
+  for (const columna of columnas) {
+    const { estado } = await api(
+      `/rest/v1/transporte_cumplimiento_resumen?select=${columna}&limit=1`,
+      { token: comprador.token }
+    );
+    if (estado === 200) expuestas.push(columna);
+  }
+
+  return {
+    ok: expuestas.length === 0,
+    detalle: expuestas.length
+      ? `la vista devuelve ${expuestas.join(", ")}; debe quedarse en los tres booleanos (§8.1)`
+      : null,
+  };
+});
+
+await comprobar("18. un comprador SÍ puede leer el resumen de cumplimiento", async () => {
+  const { estado, cuerpo } = await api(
+    "/rest/v1/transporte_cumplimiento_resumen?select=servicio_id,tiene_permisos&limit=1",
+    { token: comprador.token }
+  );
+
+  if (estado !== 200) {
+    return {
+      ok: false,
+      detalle: `HTTP ${estado}: sin acceso a la vista, los badges de documentación se quedan en blanco. ¿Falta el grant de §8.1?`,
+    };
+  }
+  return { ok: Array.isArray(cuerpo), detalle: null };
+});
+
 // ==============================================================
 // Storage (C6)
 // ==============================================================
