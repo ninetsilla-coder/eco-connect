@@ -609,6 +609,27 @@ grant  update (leido_at) on public.mensajes to authenticated;
 -- ⚠️ Añadir `email` a esta vista tiraría por tierra §4 y todo el
 -- modelo de mensajería. Si algún día hace falta un contacto directo,
 -- se pide consentimiento explícito y se registra, no se añade aquí.
+--
+-- Se concede también a `anon`, y es deliberado: el catálogo ya es
+-- público (§5 y §6 dejan leer residuos y servicios sin sesión), así que
+-- ocultar quién publica solo serviría para que dos anuncios del mismo
+-- material fueran indistinguibles. Un nombre comercial en un
+-- marketplace es información que la empresa publica al usarlo.
+--
+-- ⚠️ TRAMPA DE SUPABASE, aprendida aquí: la primera versión ponía
+--
+--     revoke all on ... from public;
+--     grant select on ... to authenticated;
+--
+-- creyendo que eso dejaba fuera a los anónimos. No lo hacía. Supabase
+-- trae `alter default privileges in schema public grant all on tables
+-- to anon, authenticated`, así que el objeto NACE con permiso para
+-- `anon`; y `revoke ... from public` quita el del pseudo-rol PUBLIC,
+-- que es otra cosa. Anon seguía leyendo.
+--
+-- Es el mismo patrón que perfil_lectura: un comentario prometiendo algo
+-- que el SQL no cumplía. Para EXCLUIR a los anónimos de verdad hace
+-- falta nombrarlos: `revoke select on ... from anon;`
 
 create or replace view public.empresas_publicas
 with (security_invoker = false) as
@@ -616,7 +637,7 @@ select p.id, p.company_name
 from public.profiles p;
 
 revoke all on public.empresas_publicas from public;
-grant select on public.empresas_publicas to authenticated;
+grant select on public.empresas_publicas to anon, authenticated;
 
 
 -- ==============================================================

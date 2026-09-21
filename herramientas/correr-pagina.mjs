@@ -56,6 +56,16 @@ console.log(`botones Contactar  : ${[...doc.querySelectorAll("button")].filter((
 const estado = doc.getElementById("status-explorar-residuos");
 console.log(`mensaje de estado  : ${estado ? JSON.stringify(estado.textContent) : "(sin elemento)"}`);
 
+const titulos = [...doc.querySelectorAll(".residuo-title, .servicio-title")];
+if (titulos.length) {
+  console.log("\nTarjetas:");
+  titulos.forEach((t) => {
+    const empresa = t.querySelector(".residuo-empresa, .servicio-empresa");
+    const nombre = t.firstChild?.textContent?.trim() ?? t.textContent.trim();
+    console.log(`  ${nombre.padEnd(20)} ${empresa ? `— ${empresa.textContent}` : "— (sin empresa)"}`);
+  });
+}
+
 if (errores.length) {
   console.log(`\nERRORES (${errores.length}):`);
   errores.forEach((e) => console.log(`  ${e}`));

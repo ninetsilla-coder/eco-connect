@@ -28,13 +28,24 @@ export function pintarMeta(contenedor, residuo, campos) {
   });
 }
 
-export function crearCabecera(residuo) {
+// `empresa` es quien publica. Sin ella, dos residuos del mismo material
+// se ven idénticos en el catálogo: pasó de verdad al probar la app —dos
+// tarjetas "PET" de empresas distintas— y llevó a abrir la conversación
+// equivocada creyendo que era la misma.
+export function crearCabecera(residuo, empresa) {
   const cabecera = document.createElement("div");
   cabecera.className = "residuo-header";
 
   const titulo = document.createElement("div");
   titulo.className = "residuo-title";
   titulo.textContent = residuo.tipo || "Residuo sin nombre";
+
+  if (empresa) {
+    const quien = document.createElement("span");
+    quien.className = "residuo-empresa";
+    quien.textContent = empresa;
+    titulo.append(document.createElement("br"), quien);
+  }
 
   const insignia = document.createElement("span");
   insignia.className = "residuo-badge";
@@ -68,7 +79,7 @@ export function crearFotos(residuo) {
 
 // Devuelve la tarjeta y su nodo meta, para que quien la use pueda
 // repintar la meta sin reconstruir la tarjeta entera.
-export function crearTarjetaResiduo(residuo, campos) {
+export function crearTarjetaResiduo(residuo, campos, { empresa } = {}) {
   const item = document.createElement("article");
   item.className = "residuo-item";
 
@@ -80,7 +91,7 @@ export function crearTarjetaResiduo(residuo, campos) {
   descripcion.className = "residuo-descripcion";
   descripcion.textContent = residuo.descripcion || "Sin descripción adicional.";
 
-  item.append(crearCabecera(residuo), meta, descripcion);
+  item.append(crearCabecera(residuo, empresa), meta, descripcion);
 
   const fotos = crearFotos(residuo);
   if (fotos) item.appendChild(fotos);

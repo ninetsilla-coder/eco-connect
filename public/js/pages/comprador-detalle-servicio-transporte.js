@@ -36,7 +36,7 @@ function mostrarMensaje(texto, tipo = "") {
   mensajeInteres.className = tipo ? `form-status ${tipo}` : "form-status";
 }
 
-function pintar(servicio) {
+function pintar(servicio, empresa) {
   principal.innerHTML = "";
 
   const galeria = crearGaleria(servicio.fotos_urls, "Foto del vehículo");
@@ -46,6 +46,7 @@ function pintar(servicio) {
 
   principal.appendChild(
     crearMeta([
+      ["Publica", empresa],
       ["Capacidad", servicio.capacidad_carga],
       ["Zona de cobertura", servicio.zona_cobertura],
       ["Residuos que transporta", servicio.tipos_residuos],
@@ -76,7 +77,10 @@ if (!servicioId) {
     if (!servicio) {
       mostrarEstado("No se encontró el servicio.", "error");
     } else {
-      pintar(servicio);
+      const empresas = await nombresDeEmpresas([servicio.user_id]).catch(() => ({}));
+      const empresa = empresas[servicio.user_id];
+
+      pintar(servicio, empresa);
       if (layout) layout.style.display = "grid";
       mostrarEstado("");
 
@@ -109,12 +113,12 @@ if (!servicioId) {
         botonContactar.disabled = true;
         mostrarMensaje("");
 
-        const nombres = await nombresDeEmpresas([servicio.user_id]).catch(() => ({}));
-
         await montarConversacion(panelMensajes, {
           usuarioId: usuario.id,
-          nombre: nombres[servicio.user_id],
-          titulo: `Conversación sobre ${servicio.tipo_transporte || "este servicio"}`,
+          nombre: empresa,
+          titulo: empresa
+            ? `Conversación con ${empresa} · ${servicio.tipo_transporte || "servicio"}`
+            : `Conversación sobre ${servicio.tipo_transporte || "este servicio"}`,
           cargar: async () => {
             const mensajes = await listarMensajesDePublicacion({ servicioId: servicio.id });
             const sinLeer = mensajes

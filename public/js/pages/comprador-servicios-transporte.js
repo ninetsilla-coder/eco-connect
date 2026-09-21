@@ -9,6 +9,7 @@ import {
   agruparCumplimiento,
   resumirCumplimiento,
 } from "../data/transporte.js";
+import { nombresDeEmpresas } from "../data/mensajes.js";
 
 montarNavbar();
 
@@ -44,7 +45,7 @@ function crearMeta(servicio) {
   return meta;
 }
 
-function crearTarjeta(servicio) {
+function crearTarjeta(servicio, empresa) {
   const tarjeta = document.createElement("article");
   tarjeta.className = "servicio-item";
 
@@ -54,6 +55,14 @@ function crearTarjeta(servicio) {
   const titulo = document.createElement("div");
   titulo.className = "servicio-title";
   titulo.textContent = servicio.tipo_transporte || "Servicio de transporte";
+
+  // Sin quién publica, dos servicios del mismo tipo son indistinguibles.
+  if (empresa) {
+    const quien = document.createElement("span");
+    quien.className = "servicio-empresa";
+    quien.textContent = empresa;
+    titulo.append(document.createElement("br"), quien);
+  }
 
   const insignia = document.createElement("span");
   insignia.className = "servicio-badge";
@@ -169,9 +178,15 @@ async function cargarServicios() {
       `Mostrando ${servicios.length} servicio(s) de transporte disponible(s).`
     );
 
+    const empresas = await nombresDeEmpresas(
+      servicios.map((s) => s.user_id)
+    ).catch(() => ({}));
+
     if (lista) {
       lista.innerHTML = "";
-      servicios.forEach((servicio) => lista.appendChild(crearTarjeta(servicio)));
+      servicios.forEach((servicio) =>
+        lista.appendChild(crearTarjeta(servicio, empresas[servicio.user_id]))
+      );
     }
 
     // Antes esto solo corría al cargar la página: al aplicar un filtro

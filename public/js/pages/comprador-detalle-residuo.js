@@ -41,7 +41,7 @@ function mostrarMensaje(texto, tipo = "") {
   mensajeInteres.className = tipo ? `form-status ${tipo}` : "form-status";
 }
 
-function pintar(residuo) {
+function pintar(residuo, empresa) {
   principal.innerHTML = "";
 
   const galeria = crearGaleria(residuo.fotos, "Foto del residuo");
@@ -51,6 +51,10 @@ function pintar(residuo) {
 
   principal.appendChild(
     crearMeta([
+      // Quién publica va primero: dos residuos del mismo material se
+      // ven idénticos sin esto, y se acaba escribiendo a la empresa
+      // equivocada.
+      ["Publica", empresa],
       ["Categoría", CATEGORIAS[residuo.categoria] ?? residuo.categoria],
       ["Cantidad", residuo.cantidad],
       ["Ubicación", residuo.ubicacion],
@@ -82,7 +86,10 @@ if (!residuoId) {
     if (!residuo) {
       mostrarEstado("No se encontró el residuo.", "error");
     } else {
-      pintar(residuo);
+      const empresas = await nombresDeEmpresas([residuo.user_id]).catch(() => ({}));
+      const empresa = empresas[residuo.user_id];
+
+      pintar(residuo, empresa);
       if (layout) layout.style.display = "grid";
       mostrarEstado("");
 
@@ -117,12 +124,14 @@ if (!residuoId) {
         botonContactar.disabled = true;
         mostrarMensaje("");
 
-        const nombres = await nombresDeEmpresas([residuo.user_id]).catch(() => ({}));
-
         await montarConversacion(panelMensajes, {
           usuarioId: usuario.id,
-          nombre: nombres[residuo.user_id],
-          titulo: `Conversación sobre ${residuo.tipo || "este residuo"}`,
+          nombre: empresa,
+          // Con el nombre de la empresa delante, dos hilos sobre el
+          // mismo material dejan de confundirse.
+          titulo: empresa
+            ? `Conversación con ${empresa} · ${residuo.tipo || "residuo"}`
+            : `Conversación sobre ${residuo.tipo || "este residuo"}`,
           cargar: async () => {
             const mensajes = await listarMensajesDePublicacion({ residuoId: residuo.id });
             const sinLeer = mensajes

@@ -63,6 +63,31 @@ describe("tarjeta de residuo", () => {
     assert.equal(meta.children.length, 1);
     assert.equal(meta.textContent, "Cantidad: 3 t");
   });
+
+  // Dos residuos del mismo material se veían idénticos en el catálogo.
+  // Pasó probando la app: dos tarjetas "PET" de empresas distintas
+  // llevaron a abrir la conversación equivocada.
+  test("la tarjeta dice qué empresa publica", () => {
+    const { item } = crearTarjetaResiduo({ tipo: "PET" }, CAMPOS, {
+      empresa: "Eco Industrias",
+    });
+
+    assert.equal(item.querySelector(".residuo-empresa").textContent, "Eco Industrias");
+  });
+
+  test("sin empresa la tarjeta no inventa una línea vacía", () => {
+    const { item } = crearTarjetaResiduo({ tipo: "PET" }, CAMPOS);
+    assert.equal(item.querySelector(".residuo-empresa"), null);
+  });
+
+  // El nombre sale de empresas_publicas, o sea del perfil que escribe
+  // OTRA empresa. Es dato ajeno como cualquier otro.
+  test("el nombre de la empresa no se interpreta como HTML", () => {
+    const { item } = crearTarjetaResiduo({ tipo: "PET" }, CAMPOS, { empresa: CARGA });
+
+    assert.equal(item.querySelectorAll("img").length, 0);
+    assert.equal(item.querySelector(".residuo-empresa").textContent, CARGA);
+  });
 });
 
 describe("bloques de detalle", () => {

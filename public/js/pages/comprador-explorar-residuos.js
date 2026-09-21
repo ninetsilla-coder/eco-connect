@@ -4,6 +4,7 @@
 
 import { montarNavbar } from "../ui/navbar.js";
 import { buscarDisponibles } from "../data/residuos.js";
+import { nombresDeEmpresas } from "../data/mensajes.js";
 import { crearTarjetaResiduo } from "../ui/residuo-card.js";
 
 montarNavbar();
@@ -29,8 +30,8 @@ function mostrarEstado(texto) {
   estadoLista.className = "list-status";
 }
 
-function crearTarjeta(residuo) {
-  const { item } = crearTarjetaResiduo(residuo, CAMPOS_META);
+function crearTarjeta(residuo, empresa) {
+  const { item } = crearTarjetaResiduo(residuo, CAMPOS_META, { empresa });
 
   const acciones = document.createElement("div");
   acciones.className = "residuo-actions";
@@ -77,9 +78,19 @@ async function cargarResiduos() {
     }
 
     mostrarEstado(`Mostrando ${residuos.length} residuo(s) disponible(s).`);
+
+    // El .catch es la red de seguridad: si la vista no responde, el
+    // catálogo se pinta sin el nombre de quien publica en vez de
+    // quedarse vacío.
+    const empresas = await nombresDeEmpresas(
+      residuos.map((r) => r.user_id)
+    ).catch(() => ({}));
+
     if (lista) {
       lista.innerHTML = "";
-      residuos.forEach((residuo) => lista.appendChild(crearTarjeta(residuo)));
+      residuos.forEach((residuo) =>
+        lista.appendChild(crearTarjeta(residuo, empresas[residuo.user_id]))
+      );
     }
   } catch (err) {
     console.error("Error cargando residuos:", err);
