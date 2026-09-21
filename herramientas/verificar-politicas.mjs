@@ -613,6 +613,31 @@ await comprobar("15. un proveedor NO puede tocar el servicio de transporte de ot
   return noAfectaFilas(ruta, proveedor.token, null, "servicios_borra (§6)");
 });
 
+// --- 16 — los perfiles ajenos no son legibles ---
+// `perfil_lectura` era `using (true)`, con un comentario que prometía
+// "los ajenos solo por su nombre público". RLS no filtra columnas, así
+// que en realidad cualquier usuario con sesión podía hacer
+// select("*") sobre profiles y llevarse el correo de todas las
+// empresas. El control positivo del arranque comprueba lo contrario
+// —que el perfil PROPIO sí se lee—, así que entre los dos acotan la
+// política por arriba y por abajo.
+await comprobar("16. un usuario NO puede leer el perfil de otra empresa", async () => {
+  const { estado, cuerpo } = await api(
+    `/rest/v1/profiles?select=id,email,company_name&id=eq.${proveedor.id}`,
+    { token: comprador.token }
+  );
+
+  if (estado !== 200) return { ok: false, detalle: `HTTP ${estado} inesperado` };
+
+  const filas = Array.isArray(cuerpo) ? cuerpo : [];
+  return {
+    ok: filas.length === 0,
+    detalle: filas.length
+      ? `LEE el perfil ajeno (correo: ${filas[0].email ?? "sin columna"}); revisa perfil_lectura (§4)`
+      : null,
+  };
+});
+
 // ==============================================================
 // Storage (C6)
 // ==============================================================

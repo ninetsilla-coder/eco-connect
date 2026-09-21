@@ -331,11 +331,35 @@ drop policy if exists "perfil_lectura"     on public.profiles;
 drop policy if exists "perfil_propio_ins"  on public.profiles;
 drop policy if exists "perfil_propio_upd"  on public.profiles;
 
--- Lectura: el propio perfil siempre; los ajenos solo por su nombre
--- público (el marketplace muestra quién publica).
+-- Lectura: SOLO el propio perfil.
+--
+-- Aquí ponía `using (true)` con un comentario que decía "los ajenos
+-- solo por su nombre público". Ese comentario describía una intención
+-- que la política no podía cumplir: **RLS no filtra columnas**. Es la
+-- misma trampa que C3 cierra para el UPDATE, y se había colado en el
+-- SELECT.
+--
+-- El efecto real era que cualquier usuario con sesión podía hacer
+--
+--   supabaseClient.from("profiles").select("*")
+--
+-- y llevarse la tabla entera: el correo de todas las empresas
+-- registradas. Un problema del mismo tamaño que dejar `empresas_registro`
+-- abierta, que es justo lo que §10 evita.
+--
+-- Se cierra a `auth.uid() = id` porque es lo que la app necesita y ni
+-- una fila más: las tres lecturas de profiles —core/sesion.js y las dos
+-- de data/perfiles.js— filtran ya por el id del propio usuario, y
+-- ninguna página muestra quién publicó un residuo.
+--
+-- ⚠️ Si algún día el marketplace tiene que mostrar el nombre de la
+-- empresa que publica, NO se vuelve a `using (true)`: eso reabriría la
+-- fuga de correos. Se expone solo lo público, con una vista
+-- (`create view empresas_publicas as select id, company_name from
+-- profiles`) o denormalizando el nombre en la propia publicación.
 create policy "perfil_lectura" on public.profiles
   for select to authenticated
-  using (true);
+  using (auth.uid() = id);
 
 create policy "perfil_propio_ins" on public.profiles
   for insert to authenticated
