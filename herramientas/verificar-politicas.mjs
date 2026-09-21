@@ -717,7 +717,7 @@ const borrar = (bucket, ruta, token) =>
 // separación entre empresas en Storage descansa en ese prefijo.
 await comprobar("8. un usuario NO puede subir a la carpeta de otro", async () => {
   const ruta = `${proveedor.id}/${OBJETO_PRUEBA}`;
-  const { estado } = await subir("residuos-fotos", ruta, comprador.token);
+  const { estado, cuerpo } = await subir("residuos-fotos", ruta, comprador.token);
 
   if (estado === 200 || estado === 201) {
     // Se coló: la carpeta es del proveedor, así que lo limpia él.
@@ -728,7 +728,28 @@ await comprobar("8. un usuario NO puede subir a la carpeta de otro", async () =>
     };
   }
 
-  return { ok: true, detalle: estado === 403 ? null : `HTTP ${estado}` };
+  // Que la subida falle NO basta: hay que saber POR QUÉ falló.
+  //
+  // Esta comprobación miraba solo el código de estado, y Storage
+  // responde 400 tanto a una petición mal formada como a una denegada
+  // por RLS. Con ese criterio, un error de tipos en este mismo script
+  // —una ruta mal construida, una cabecera que falta— daría PASA sin
+  // que la política llegara a evaluarse nunca. Verde por el motivo
+  // equivocado, que es peor que rojo.
+  //
+  // Storage manda el motivo en el cuerpo, así que se exige que hable de
+  // autorización. Si algún día cambia ese texto, esto pasa a FALLA y se
+  // revisa: es la dirección correcta en la que equivocarse.
+  const motivo = JSON.stringify(cuerpo ?? "");
+  const esDenegacion = /row-level security|Unauthorized|not authorized|403/i.test(motivo);
+
+  return {
+    ok: esDenegacion,
+    detalle: esDenegacion
+      ? null
+      : `rechazada con HTTP ${estado}, pero el motivo no parece la política: ${motivo.slice(0, 160)}. ` +
+        `Comprueba que la petición sea válida antes de fiarte de este verde.`,
+  };
 });
 
 // --- 5 — C6: los buckets de cumplimiento no abren sin firmar ---

@@ -470,7 +470,23 @@ y estar mal escrita.
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
 | C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
 
-## ✅ Estado al 2026-09-18: 17 pruebas pasan, 0 fallan, 0 saltadas
+## ✅ Estado al 2026-09-21: 20 pruebas pasan, 0 fallan, 0 saltadas
+
+Verificado contra el proyecto real tras aplicar `politicas.sql`. Las tres
+comprobaciones añadidas ese día:
+
+| # | Qué fija |
+|---|---|
+| 16 | Un usuario no lee el perfil de otra empresa (cierra la fuga de correos de C7) |
+| 17 | La vista de cumplimiento no devuelve `permisos_urls`, `certificaciones_urls`, `seguros_urls` ni `user_id` |
+| 18 | Un comprador **sí** puede leer el resumen — sin esto, revocar el grant dejaría la 17 en verde y los badges rotos |
+
+La 8 también se endureció: comprobaba solo el código de estado, y Storage
+responde `400` tanto a una petición mal formada como a una denegada por RLS.
+Ahora exige que el cuerpo hable de autorización, para que un error del propio
+script no pueda dar verde sin que la política llegue a evaluarse.
+
+### Estado anterior (2026-09-18: 17 pruebas)
 
 ### Las dos últimas lagunas, cerradas
 
