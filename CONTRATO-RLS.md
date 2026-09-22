@@ -16,11 +16,15 @@ pública por diseño; ocultar botones con `style.display = "none"` no protege na
 
 ## 1. Prioridad de ejecución
 
+> **Los 8 puntos están aplicados y verificados** (último, el 6, el 2026-09-21).
+> Esta tabla se conserva como registro del orden en que hubo que hacerlo, no
+> como lista de tareas pendientes. El estado vivo está en [§6](#6-estado).
+
 En este orden. Cada punto asume el anterior resuelto.
 
 | # | Acción | Severidad | Referencia |
 |---|--------|-----------|------------|
-| 1 | Confirmar que **RLS está activo** en las 9 tablas | 🔴 Bloqueante | [§5](#5-verificación) |
+| 1 | Confirmar que **RLS está activo** en las 10 tablas | 🔴 Bloqueante | [§5](#5-verificación) |
 | 2 | `USING (auth.uid() = user_id)` en los `UPDATE`/`DELETE` | 🔴 Crítico | [C1](#c1--propiedad-en-escrituras-destructivas) |
 | 3 | `WITH CHECK (auth.uid() = user_id)` en los `INSERT` | 🔴 Crítico | [C2](#c2--identidad-no-falsificable-en-inserts) |
 | 4 | Bloquear `company_type` en el `UPDATE` de `profiles` | 🟠 Alto | [C3](#c3--el-rol-es-inmutable-desde-el-cliente) |
@@ -236,6 +240,81 @@ create policy "gestion_sobre_residuo_propio" on public.residuos_gestion_ambienta
   adicional acotada a las filas que apuntan a residuos suyos.
 - `profiles` se lee **solo a sí mismo** (`auth.uid() = id`). Ver C7.
 
+### C6 — Storage
+
+Los 5 buckets suben con prefijo `${user.id}/` — `publicar-residuos.html:452`,
+`gestion-ambiental.html:487`, `transporte-responsable.html:210`,
+`publicar-servicio-transporte.html:175`, `js/profile.js:203`. **Esa convención es
+correcta** y hace posible la política estándar.
+
+| Bucket | Visibilidad | Motivo |
+|---|---|---|
+| `residuos-fotos` | Pública | Catálogo |
+| `fotos-transporte` | Pública | Catálogo |
+| `company-logos` | Pública | Marca |
+| `gestion-ambiental` | **Privada** | Documentación regulatoria |
+| `docs-transporte` | **Privada** | Permisos y licencias |
+
+**Contrato:** solo el propietario escribe en su carpeta; los dos buckets de
+cumplimiento no son legibles por URL adivinada.
+
+El criterio es idéntico para los dos buckets de cumplimiento — el primer
+segmento de la ruta tiene que ser el id de quien sube:
+
+```sql
+create policy "sube_en_su_carpeta_gestion" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'gestion-ambiental'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "sube_en_su_carpeta_docs" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'docs-transporte'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+```
+
+Y lo mismo para los tres públicos (`residuos-fotos`, `fotos-transporte`,
+`company-logos`): que un bucket sea de lectura pública no significa que
+cualquiera pueda escribir en la carpeta de otro.
+
+> **Cómo se implementa.** `supabase/politicas.sql` §11 no crea cinco políticas
+> casi idénticas: usa una sola con `bucket_id in (...)` sobre los cinco buckets.
+> El efecto es el mismo —varias políticas permisivas se combinan con `OR`— y hay
+> un objeto que revisar en vez de cinco que pueden divergir. Este documento las
+> lista por separado porque describe **qué debe ser cierto** para cada bucket;
+> el script elige cómo cumplirlo.
+
+**El mismo criterio vale para el `DELETE`,** y ahí hay un matiz que conviene
+fijar: la política de borrado debe estar acotada a esos cinco buckets, igual que
+la de subida. Una política de `DELETE` sobre `storage.objects` sin filtro de
+`bucket_id` alcanza también a cualquier bucket que se cree en el futuro, antes
+de que a nadie le dé tiempo a escribirle una política propia.
+
+**Y el `SELECT` de los buckets privados no es opcional.** `createSignedUrl()`
+exige permiso de lectura de base sobre el objeto: sin `lee_privados_propios`, el
+dueño tampoco puede firmar, y la pantalla de documentos saldría vacía sin dar un
+solo error. Por eso la prueba 5 del verificador comprueba **las dos direcciones**
+—que el dueño sí lee y que nadie más— y no solo la denegación: una lectura rota
+para todo el mundo también deniega, y pasaría por segura.
+
+**Contrato: NO hay política de `UPDATE`, y es deliberado.** La app nunca
+reemplaza un archivo — `core/almacenamiento.js` sube con `upsert: false` y nombra
+cada objeto con un UUID, así que toda subida es un `INSERT`. Una política que no
+cubre ninguna operación real es superficie de ataque sin contrapartida.
+`almacenamiento.test.js` fija ese flag para que no cambie por descuido: con
+`upsert: true` la petición pasaría a ser un `UPDATE`, RLS la denegaría, y el
+usuario vería un fallo al subir sin ninguna pista de la causa. Si algún día hace
+falta reemplazar archivos, **primero** la política (está escrita y comentada en
+`politicas.sql` §11.1) y **después** el flag.
+
+Los buckets privados obligan al único cambio de código de este contrato:
+`getPublicUrl()` → `createSignedUrl(path, segundos)` en `gestion-ambiental.html`
+y `transporte-responsable.html`.
+
 ### C7 — Exponer un dato sin exponer su fila
 
 Dos veces ha aparecido la misma necesidad: enseñar *algo* de una fila ajena sin
@@ -328,80 +407,6 @@ escribir a otros. Es deliberado —un proveedor querrá responder a quien mostr�
 interés— y no es peor que el formulario de contacto sin límite de tasa de §10.
 La solución de los dos es la misma: limitar el ritmo.
 
-### C6 — Storage
-
-Los 5 buckets suben con prefijo `${user.id}/` — `publicar-residuos.html:452`,
-`gestion-ambiental.html:487`, `transporte-responsable.html:210`,
-`publicar-servicio-transporte.html:175`, `js/profile.js:203`. **Esa convención es
-correcta** y hace posible la política estándar.
-
-| Bucket | Visibilidad | Motivo |
-|---|---|---|
-| `residuos-fotos` | Pública | Catálogo |
-| `fotos-transporte` | Pública | Catálogo |
-| `company-logos` | Pública | Marca |
-| `gestion-ambiental` | **Privada** | Documentación regulatoria |
-| `docs-transporte` | **Privada** | Permisos y licencias |
-
-**Contrato:** solo el propietario escribe en su carpeta; los dos buckets de
-cumplimiento no son legibles por URL adivinada.
-
-El criterio es idéntico para los dos buckets de cumplimiento — el primer
-segmento de la ruta tiene que ser el id de quien sube:
-
-```sql
-create policy "sube_en_su_carpeta_gestion" on storage.objects
-  for insert to authenticated
-  with check (
-    bucket_id = 'gestion-ambiental'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-
-create policy "sube_en_su_carpeta_docs" on storage.objects
-  for insert to authenticated
-  with check (
-    bucket_id = 'docs-transporte'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
-```
-
-Y lo mismo para los tres públicos (`residuos-fotos`, `fotos-transporte`,
-`company-logos`): que un bucket sea de lectura pública no significa que
-cualquiera pueda escribir en la carpeta de otro.
-
-> **Cómo se implementa.** `supabase/politicas.sql` §11 no crea cinco políticas
-> casi idénticas: usa una sola con `bucket_id in (...)` sobre los cinco buckets.
-> El efecto es el mismo —varias políticas permisivas se combinan con `OR`— y hay
-> un objeto que revisar en vez de cinco que pueden divergir. Este documento las
-> lista por separado porque describe **qué debe ser cierto** para cada bucket;
-> el script elige cómo cumplirlo.
-
-**El mismo criterio vale para el `DELETE`,** y ahí hay un matiz que conviene
-fijar: la política de borrado debe estar acotada a esos cinco buckets, igual que
-la de subida. Una política de `DELETE` sobre `storage.objects` sin filtro de
-`bucket_id` alcanza también a cualquier bucket que se cree en el futuro, antes
-de que a nadie le dé tiempo a escribirle una política propia.
-
-**Y el `SELECT` de los buckets privados no es opcional.** `createSignedUrl()`
-exige permiso de lectura de base sobre el objeto: sin `lee_privados_propios`, el
-dueño tampoco puede firmar, y la pantalla de documentos saldría vacía sin dar un
-solo error. Por eso la prueba 5 del verificador comprueba **las dos direcciones**
-—que el dueño sí lee y que nadie más— y no solo la denegación: una lectura rota
-para todo el mundo también deniega, y pasaría por segura.
-
-**Contrato: NO hay política de `UPDATE`, y es deliberado.** La app nunca
-reemplaza un archivo — `core/almacenamiento.js` sube con `upsert: false` y nombra
-cada objeto con un UUID, así que toda subida es un `INSERT`. Una política que no
-cubre ninguna operación real es superficie de ataque sin contrapartida.
-`almacenamiento.test.js` fija ese flag para que no cambie por descuido: con
-`upsert: true` la petición pasaría a ser un `UPDATE`, RLS la denegaría, y el
-usuario vería un fallo al subir sin ninguna pista de la causa. Si algún día hace
-falta reemplazar archivos, **primero** la política (está escrita y comentada en
-`politicas.sql` §11.1) y **después** el flag.
-
-Los buckets privados obligan al único cambio de código de este contrato:
-`getPublicUrl()` → `createSignedUrl(path, segundos)` en `gestion-ambiental.html`
-y `transporte-responsable.html`.
 
 ---
 
@@ -412,8 +417,9 @@ comprueba por sí mismo, **antes de crear ninguna política**:
 
 | Paso | Qué hace | Si falla |
 |---|---|---|
-| §0 | que las 9 tablas existan con ese nombre | **aborta** sin aplicar nada |
-| §1 | `enable row level security` en las 8, explícito | — |
+| §0.0 | crea `mensajes`, la única tabla que nace del script | — |
+| §0 | que las 10 tablas existan con ese nombre | **aborta** sin aplicar nada |
+| §1 | `enable row level security` en las 10, explícito | — |
 | §1.1 | relee el catálogo y confirma que quedó activo | **aborta** antes de las políticas |
 | §1.2 | busca tablas en `public` sin RLS que el script no cubra | **avisa** (`warning`) |
 
@@ -494,7 +500,7 @@ y estar mal escrita.
 
 | Cláusula | Aplicada | Verificada |
 |---|---|---|
-| RLS activo en las 9 tablas | ✅ 2026-09-14 | ✅ §12.1 no devuelve ninguna `TABLA SIN RLS` |
+| RLS activo en las 10 tablas | ✅ 2026-09-14 · `mensajes` 2026-09-21 | ✅ §12.1 no devuelve ninguna `TABLA SIN RLS` |
 | C1 — Propiedad en `UPDATE`/`DELETE` | ✅ 2026-09-14 | ✅ 2026-09-18, pruebas 2, 13, 14 y 15 |
 | C2 — `WITH CHECK` en `INSERT` | ✅ 2026-09-14 | ✅ 2026-09-17, implícito en 1 y 6 |
 | C2 — `DEFAULT auth.uid()` en las 5 | ✅ 2026-09-18 | — (defensa en profundidad) |
@@ -504,7 +510,17 @@ y estar mal escrita.
 | C5 — Lecturas: `empresas_registro` | ✅ 2026-09-14 | ✅ 2026-09-17, prueba 4 |
 | C5 — Lecturas: filtro de `estado` | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 7 |
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
-| C6 — Storage: buckets privados | ✅ 2026-09-17 | ✅ 2026-09-17, prueba 5 |
+| C6 — Storage: buckets privados (flag `public`) | ✅ 2026-09-21 | ✅ §12.1 no devuelve `BUCKET QUE DEBERIA SER PRIVADO` |
+| C7 — Vistas en vez de políticas permisivas | ✅ 2026-09-21 | ✅ 2026-09-21, pruebas 16, 17 y 18 |
+| C8 — Mensajería entre empresas | ✅ 2026-09-21 | ⚠️ sin pruebas en el verificador — ver abajo |
+
+> **La única cláusula sin automatizar es C8.** `mensajes` se validó a mano el
+> 2026-09-21 —dos empresas conversando, cada hilo separado del resto— pero el
+> verificador no intenta todavía lo que *no* debe poder hacerse: leer un hilo
+> ajeno, firmar un mensaje con el uid de otro, o reescribir el `cuerpo` de uno
+> recibido aprovechando `mensajes_marca`. Ese último es el que más importa:
+> depende de un `grant` de columna, y un `grant` mal puesto no se ve leyendo el
+> catálogo. Hasta que estén, C8 está aplicada pero no demostrada.
 
 ## ✅ Estado al 2026-09-21: 20 pruebas pasan, 0 fallan, 0 saltadas
 
@@ -653,22 +669,30 @@ Dos cambios lo cierran:
 2. El verificador añade las pruebas 6 y 7, una por cada agujero que no era el de
    la prueba 1.
 
-**Lo único que falta por aplicar es el punto 6 de §1:** `gestion-ambiental` y
-`docs-transporte` siguen en `public = true`. La línea que los cierra está
-comentada a propósito en `politicas.sql` §11, y por eso el diagnóstico devuelve
-esas dos filas cada vez. Son las únicas dos que debe devolver.
+### El punto 6, cerrado — y por qué estuvo bloqueado
 
-> **El motivo de ese bloqueo ya no aplica.** El comentario de §11 dice que
-> `gestion-ambiental.html` y `transporte-responsable.html` usan `getPublicUrl()`,
-> pero eso se corrigió en la migración: hoy `data/cumplimiento.js` guarda rutas,
-> no URLs, y `referenciar()` firma tanto las rutas nuevas como las URLs completas
-> de las filas antiguas. Ninguna página llama ya a `getPublicUrl()`.
->
-> Queda una comprobación antes de descomentarlo: `urlsDeDocumentos()` existe en
-> `data/cumplimiento.js` pero **ninguna página la llama todavía**, así que ahora
-> mismo los documentos se suben y no se muestran en ninguna parte. Volver los
-> buckets privados no rompe nada visible — no hay nada que mostrar —, pero la
-> pantalla que los muestre tendrá que usar esa función desde el primer día.
+Esta sección afirmaba durante días que los buckets de cumplimiento «siguen en
+`public = true`» mientras la tabla de arriba los daba por privados desde el
+2026-09-17. **Se contradecía sola**, que es exactamente el defecto que este
+contrato persigue en el SQL.
+
+La secuencia real, que explica las dos mitades:
+
+| Fecha | Qué pasó |
+|---|---|
+| 2026-09-17 | Se aplicaron las **políticas** de Storage (`sube_en_su_carpeta`, `lee_privados_propios`…). La tabla de arriba se refiere a esto. |
+| — | El **flag `public` del bucket** quedó bloqueado a propósito: las páginas usaban `getPublicUrl()`, y volverlos privados habría hecho ilegibles los documentos ya subidos. |
+| 2026-09-21 | La migración movió las páginas a rutas firmadas y `ui/documentos.js` estrenó la pantalla que los muestra. Se descomentó la línea de §11 y se aplicó. |
+
+Confirmado al ejecutar `politicas.sql`: §12.1 devuelve **cero filas**, y esa
+consulta incluye `BUCKET QUE DEBERIA SER PRIVADO`. Los dos buckets son privados.
+
+> El bloqueo tenía dos condiciones y las dos se cumplieron: que ninguna página
+> llamara a `getPublicUrl()` —hoy `data/cumplimiento.js` guarda rutas y
+> `referenciar()` las firma, incluidas las URLs completas de filas antiguas— y
+> que `urlsDeDocumentos()` tuviera quien la llamara, porque con los buckets
+> privados una URL pública deja de resolver. La segunda se cerró el 2026-09-21:
+> `gestion-ambiental` y `transporte-responsable` enlazan ya sus documentos.
 
 ---
 
