@@ -13,7 +13,8 @@
     "test:cobertura": "node --import ./tests/ayudas/registrar.js --test --experimental-test-coverage tests/",
     "servir": "node --run servir:estatico",
     "servir:estatico": "npx --yes serve@14 public -c ../serve.json",
-    "verificar:politicas": "node herramientas/verificar-politicas.mjs"
+    "verificar:politicas": "node herramientas/verificar-politicas.mjs",
+    "sembrar:ejemplos": "node herramientas/sembrar-ejemplos.mjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

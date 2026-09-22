@@ -150,6 +150,29 @@ Está en el PATH de usuario: un shell nuevo lo encuentra, uno ya abierto no.
 CORS los `<script type="module">` cargados con `file://`; abrir el HTML a doble
 clic deja la página en blanco. Usar `npm run servir` o **Live Server** de VS Code.
 
+### Sembrar los datos de ejemplo del pitch
+
+```bash
+npm run sembrar:ejemplos
+```
+
+Crea tres empresas **inventadas** —generadora, compradora y transportista— con su
+expediente completo, sus materiales amparados, sus residuos y su servicio de
+transporte (decisiones D-9 y D-12 de `docs/plan-de-trabajo.md`). Se puede correr
+varias veces: antes de sembrar borra lo que sembró.
+
+Tampoco forma parte de `npm test` ni debe estarlo: escribe en el proyecto real.
+Vive en `herramientas/` por lo mismo que `verificar-politicas.mjs`.
+
+**Deja un paso a mano, y no es un olvido:** poner las tres cuentas en
+`verificado` desde el panel. El estado lo escribe el equipo, nunca el navegador
+ni una llave pública — cláusula C3. Si un script con la llave publishable pudiera
+verificarse solo, cualquiera podría.
+
+**Si la confirmación por correo está activa en Supabase**, el script no podrá
+entrar con las cuentas recién creadas y lo dirá. Se apaga en Authentication →
+Providers → Email.
+
 **En PowerShell, `npm` falla con `UnauthorizedAccess`** (visto el 2026-09-22). No
 es el proyecto: en Windows PowerShell el comando es el script `npm.ps1`, y la
 política de ejecución viene en `Restricted` de fábrica (`Get-ExecutionPolicy

@@ -34,7 +34,7 @@ Tomadas el 2026-09-22. Mandan sobre cualquier otra lectura de los documentos.
 | D-9 | **Habrá datos de ejemplo, con nombres inventados** | Nada de nombres de empresas reales, ni siquiera de las del padrón |
 | D-10 | **Las cuentas que ya existen quedan como "verificado"** | Para que la demo no se tope con avisos de expediente incompleto |
 | D-11 | **Un RFC no se puede repetir** | Regla en la base que rechaza el registro si el RFC ya está usado |
-| D-12 | **En el pitch, una cuenta de ejemplo por rol** | Se enseña con tres cuentas distintas (generadora, compradora, transportista). El selector de modo de la tarea 15 se presenta **como parte del plan con inversión**, no como algo que ya funciona |
+| D-12 | **En el pitch, una cuenta de ejemplo por rol** | Se enseña con tres cuentas distintas (generadora, compradora, transportista). El selector de modo de la tarea 15 se presenta **como parte del plan con inversión**, no como algo que ya funciona. **Se siembran con `npm run sembrar:ejemplos`** (2026-09-22) |
 | D-13 | **El expediente muestra solo los bloques del rol principal** | Aunque la empresa haya marcado varios roles (D-3), por ahora sube los papeles de uno. Decisión de tiempo, no de diseño: el expediente por varios roles va con la tarea 15, donde la verificación pasa a ser por rol |
 | D-14 | **Los vehículos del transportista, en un campo de texto** | Tipo y placas escritos juntos, no una lista con "añadir vehículo". La versión real es una tabla, y hace falta cuando el manifiesto se llene solo (tarea 10) |
 | D-15 | **El estado de la cuenta bloquea solo en pantalla** | Botones apagados y aviso de qué falta, pero las reglas de la base **no** comprueban el estado: quien llame a la API directamente publica igual. Anotado como pendiente de seguridad en `CLAUDE.md` §7, como exige §0.1. **No presentarlo como control de acceso en el pitch** |
@@ -427,6 +427,32 @@ propósito: si algún día esto se conecta de verdad, quitarlos es parte de toca
 Se llega desde el menú: "Pago de una operación (ejemplo)" en comprador y "Manifiesto
 (ejemplo)" en generador, cada uno del rol que lo usa en el flujo real. Cuando exista "Mis
 operaciones" (tarea 8), ese será el camino y estos enlaces sobran.
+
+### 19. [x] Datos de ejemplo para el pitch (2026-09-22)
+
+`herramientas/sembrar-ejemplos.mjs`, que se corre con `npm run sembrar:ejemplos`. Crea tres
+empresas **inventadas** con todo lo necesario para recorrer la plataforma de punta a punta:
+
+| Empresa | Rol | Qué trae |
+|---|---|---|
+| Metales del Nazas S.A. de C.V. | Generadora | Expediente completo, registro que ampara acero, hierro y HMS, y dos lotes publicados con ficha y precio |
+| Recicladora Laguna Verde S.A. de C.V. | Compradora | Autorización de reciclado que ampara cuatro materiales, vigente hasta 2027 |
+| Fletes del Norte | Transportista | Autorización, dos vehículos, póliza y un servicio publicado |
+
+**Detalles pensados para que la demo enseñe algo, no solo se vea llena:**
+
+- La transportista es **persona física** (RFC de 13): así se ve en vivo que no se le pide
+  acta constitutiva.
+- Su autorización **vence en 75 días**, para que la revisión previa enseñe el aviso de "vence
+  pronto" — que con la cuenta de generador no se puede ver, porque su registro no caduca.
+- Los materiales de la generadora **no incluyen PET**: publicar un PET con esa cuenta enseña
+  al instante el aviso de "tu registro no ampara este material".
+- Los documentos suben un **PDF válido de verdad**, no un archivo de relleno: el enlace "Ver
+  el archivo cargado" abre algo.
+
+**Deja un paso a mano, a propósito:** poner las tres cuentas en `verificado` desde el panel.
+El estado lo escribe el equipo, nunca el navegador ni una llave pública (C3). Si un script con
+la llave publishable pudiera verificarse solo, cualquiera podría.
 
 ### 18. [x] El amparo por material, a la vista (2026-09-22)
 
