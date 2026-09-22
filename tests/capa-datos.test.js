@@ -107,10 +107,12 @@ describe("actualizarPerfil", () => {
 });
 
 describe("etiquetaRol", () => {
+  // El identificador interno sigue siendo `proveedor`; lo que cambió es
+  // solo la etiqueta, al vocabulario de docs/documento-maestro.md §05.
   test("traduce los tres roles", () => {
     assert.equal(etiquetaRol("comprador"), "Comprador industrial");
-    assert.equal(etiquetaRol("proveedor"), "Proveedor de residuos");
-    assert.equal(etiquetaRol("logistica"), "Proveedor de transporte y logística");
+    assert.equal(etiquetaRol("proveedor"), "Generador de residuos");
+    assert.equal(etiquetaRol("logistica"), "Transportista");
   });
 
   test("un rol ausente o desconocido no rompe la vista", () => {

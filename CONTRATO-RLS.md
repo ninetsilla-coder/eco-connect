@@ -371,6 +371,48 @@ create policy "catalogo_publico" on public.residuos_publicados
   using (estado = 'disponible' or auth.uid() = user_id);
 ```
 
+### C9 — El alta escribe lo que el usuario no puede reescribir
+
+**Añadido el 2026-09-22 con el registro nuevo** (`docs/cambios-plataforma.md` §1).
+
+El alta dejó de ser "nombre + tipo": ahora entran también **RFC**, **nombre
+comercial** y **la lista de roles** que marcó la empresa. Los cuatro los escribe
+el trigger `crear_perfil()` (§2 de `politicas.sql`) desde `raw_user_meta_data`, en
+la misma transacción que crea el usuario.
+
+**Contrato:** `rfc` y `roles` son tan inmutables desde el cliente como
+`company_type`. No entran en el `grant update (location, logo_url, updated_at)` de
+C3.
+
+El motivo es el mismo de C3 y conviene decirlo entero: el equipo va a cotejar el
+RFC y la razón social contra el padrón de la SMA. Si después de esa revisión la
+empresa pudiera reescribir su propio RFC, la revisión no valdría nada. Y RLS no
+filtra columnas: basta con que la columna esté en el `grant`.
+
+`roles` **no es un permiso, es un dato**. Quien decide sigue siendo
+`company_type`: `mi_rol()` lee esa columna y las cinco políticas de escritura
+comparan contra ella. Guardar la lista completa es la decisión D-3 de
+`docs/plan-de-trabajo.md` — el día que los roles múltiples sean de verdad, el
+cambio será de políticas, no de formulario, y el dato ya estará ahí.
+
+> ⚠️ **Un arreglo en `roles` no autoriza nada.** Si alguna política futura llega a
+> leer esa columna, hay que volver a demostrar C4 con las pruebas 1, 6, 9, 10 y
+> 11: es exactamente el tipo de cambio que en 2026-09-17 pasó por aplicado
+> estando roto.
+
+**Un RFC identifica a una empresa** (D-11): índice único parcial
+`profiles_rfc_unico`, parcial porque las cuentas anteriores no tienen RFC.
+
+Y una función nueva, `public.rfc_disponible(text)`, que responde **solo un
+booleano**: es C7 otra vez —un dato derivado sin abrir la tabla— pero como
+función, porque hace falta antes de tener sesión. Sin ella el duplicado lo
+rechaza el motor y al navegador le llega `Database error saving new user`.
+
+**Concesión aceptada y anotada:** cualquiera puede preguntar, RFC por RFC, cuáles
+están registrados. El RFC de una empresa es público y el índice único revelaría lo
+mismo intentando el alta, así que no abre nada que no estuviera abierto. Si
+molesta, la solución es limitar el ritmo, igual que en §10.
+
 ### C8 — El contacto vive dentro de la app
 
 Un marketplace tiene que dejar que las dos empresas se hablen. Las dos formas de
@@ -513,6 +555,7 @@ y estar mal escrita.
 | C6 — Storage: buckets privados (flag `public`) | ✅ 2026-09-21 | ✅ §12.1 no devuelve `BUCKET QUE DEBERIA SER PRIVADO` |
 | C7 — Vistas en vez de políticas permisivas | ✅ 2026-09-21 | ✅ 2026-09-21, pruebas 16, 17 y 18 |
 | C8 — Mensajería entre empresas | ✅ 2026-09-21 | ✅ 2026-09-21, pruebas 19 a 23 |
+| C9 — `rfc` y `roles` inmutables desde el cliente | ⏳ pendiente de aplicar en el panel | ⏳ sin prueba automatizada todavía |
 
 > **La 22 y la 23 se validan mutuamente, y por eso van juntas.** `mensajes_marca`
 > deja al destinatario hacer `UPDATE`; lo único que le impide reescribir el

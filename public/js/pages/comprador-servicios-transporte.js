@@ -108,7 +108,7 @@ function crearTarjeta(servicio, empresa) {
   // `contactar=1` hace que se abra al llegar.
   const botonContacto = document.createElement("button");
   botonContacto.className = "btn-primary";
-  botonContacto.textContent = "Contactar proveedor logístico";
+  botonContacto.textContent = "Contactar transportista";
   botonContacto.addEventListener("click", () => {
     window.location.href =
       `comprador-detalle-servicio-transporte.html?id=${servicio.id}&contactar=1`;

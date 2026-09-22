@@ -318,11 +318,49 @@ end $$;
 
 
 -- ==============================================================
+-- 1.4 Columnas del alta de cuenta (2026-09-22)
+-- ==============================================================
+-- El registro pasó de "nombre + tipo" a la ficha de empresa que pide
+-- docs/cambios-plataforma.md §1. Tres columnas nuevas:
+--
+--   nombre_comercial  opcional, "cómo te conocen tus clientes"
+--   rfc               obligatorio, 12 o 13 caracteres, en MAYÚSCULAS
+--   roles             TODAS las casillas que marcó la empresa
+--
+-- `company_name` pasa a significar razón social. No se renombra a
+-- propósito: de él cuelga la vista empresas_publicas (§7.2), y tocar
+-- esa vista es un cambio del contrato C7.
+--
+-- `roles` es un dato, no un permiso. Quien manda sigue siendo
+-- company_type (decisión D-3 de docs/plan-de-trabajo.md): mi_rol() y
+-- las cinco políticas de escritura leen ese, no este. El día que los
+-- roles múltiples sean de verdad, este arreglo es el punto de partida
+-- y el cambio será de políticas, no de formulario.
+
+alter table public.profiles
+  add column if not exists nombre_comercial text,
+  add column if not exists rfc              text,
+  add column if not exists roles            text[];
+
+-- Un RFC identifica a UNA empresa (D-11). El índice es parcial porque
+-- las cuentas anteriores al 2026-09-22 no tienen RFC: sin el WHERE,
+-- todas ellas competirían por el mismo valor nulo en algunos motores.
+create unique index if not exists profiles_rfc_unico
+  on public.profiles (rfc)
+  where rfc is not null;
+
+
+-- ==============================================================
 -- 2. Alta de cuenta: el trigger es la única vía para company_type
 -- ==============================================================
 -- Corrige la carrera de script.js:404. El cliente ya envía los datos
 -- en options.data de signUp(); aquí se copian a profiles en la misma
 -- transacción que crea el usuario, así que no hay ventana de tiempo.
+--
+-- Y es la única vía también para rfc y roles. Si el navegador pudiera
+-- escribirlos, una empresa se cambiaría el rol o el RFC después de que
+-- el equipo revisara su expediente — la misma escalada que cierra C3.
+-- Por eso NO entran en el `grant update` de §4.
 
 create or replace function public.crear_perfil()
 returns trigger
@@ -331,19 +369,37 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, company_name, company_type, created_at, updated_at)
+  insert into public.profiles (
+    id, email, company_name, nombre_comercial, rfc,
+    company_type, roles, created_at, updated_at
+  )
   values (
     new.id,
     new.email,
     new.raw_user_meta_data ->> 'company_name',
+    nullif(new.raw_user_meta_data ->> 'nombre_comercial', ''),
+    nullif(upper(new.raw_user_meta_data ->> 'rfc'), ''),
     new.raw_user_meta_data ->> 'company_type',
+    -- roles llega como arreglo JSON: ["proveedor","comprador"].
+    -- Si no viene (cuenta creada por otra vía), se asume el principal,
+    -- para que la columna nunca quede nula contradiciendo a company_type.
+    coalesce(
+      (select array_agg(valor)
+         from jsonb_array_elements_text(
+                coalesce(new.raw_user_meta_data -> 'roles', '[]'::jsonb)
+              ) as valor),
+      array[new.raw_user_meta_data ->> 'company_type']
+    ),
     now(),
     now()
   )
   on conflict (id) do update
-    set company_name = coalesce(public.profiles.company_name, excluded.company_name),
-        company_type = coalesce(public.profiles.company_type, excluded.company_type),
-        email        = coalesce(public.profiles.email,        excluded.email);
+    set company_name     = coalesce(public.profiles.company_name,     excluded.company_name),
+        nombre_comercial = coalesce(public.profiles.nombre_comercial, excluded.nombre_comercial),
+        rfc              = coalesce(public.profiles.rfc,              excluded.rfc),
+        company_type     = coalesce(public.profiles.company_type,     excluded.company_type),
+        roles            = coalesce(public.profiles.roles,            excluded.roles),
+        email            = coalesce(public.profiles.email,            excluded.email);
   return new;
 end;
 $$;
@@ -376,6 +432,45 @@ $$;
 
 revoke execute on function public.mi_rol() from public;
 grant  execute on function public.mi_rol() to authenticated;
+
+
+-- ==============================================================
+-- 3.1 ¿Está libre este RFC?
+-- ==============================================================
+-- El índice único de §1.4 ya impide el duplicado, pero lo rechaza el
+-- motor: al navegador le llega "Database error saving new user", que no
+-- le dice nada a quien se está registrando. Esta función existe para
+-- poder avisar ANTES, con una frase entendible.
+--
+-- Devuelve un booleano y nada más. No expone de quién es el RFC, ni
+-- cuántos hay, ni ninguna fila: es el mismo criterio de C7 —enseñar un
+-- dato derivado sin abrir la tabla— llevado a una función.
+--
+-- Concesión aceptada: quien tenga una lista de RFC puede averiguar,
+-- uno por uno, cuáles están registrados en EcoConnect. El RFC de una
+-- empresa es público y el índice único revelaría lo mismo intentando
+-- el alta, así que no abre nada nuevo. Si algún día molesta, la
+-- solución es limitar el ritmo, igual que en §10.
+--
+-- SECURITY DEFINER porque profiles solo se lee a sí mismo (§4): sin
+-- esto, quien no ha iniciado sesión no vería ningún RFC y la función
+-- respondería "libre" siempre.
+
+create or replace function public.rfc_disponible(rfc_consultado text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select not exists (
+    select 1 from public.profiles
+    where rfc = upper(trim(rfc_consultado))
+  );
+$$;
+
+revoke execute on function public.rfc_disponible(text) from public;
+grant  execute on function public.rfc_disponible(text) to anon, authenticated;
 
 
 -- ==============================================================

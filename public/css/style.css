@@ -65,6 +65,35 @@ img {
   letter-spacing: 0.06em;
 }
 
+/* Bloque de sesión del encabezado: "Login / Registrarse" cuando no hay
+   nadie, y "Mi cuenta" + "Cerrar sesión" cuando sí.
+   No tenía ninguna regla: sus hijos se apoyaban en el espacio en blanco
+   del HTML para separarse —por eso salían pegados— y los dos botones
+   heredaban el tamaño de los botones grandes del sitio, que en una barra
+   de 64px se salen por la derecha. */
+.navbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Botones de barra, no de página: mismo color, menos cuerpo. */
+.navbar-auth .btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.navbar-account {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0F3D2E;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .logo-eco {
   color: #087334;
 }
@@ -236,6 +265,16 @@ img {
   font-size: 0.98rem;
   color: black;
   max-width: 640px;
+}
+
+/* Aclaración al pie de una sección. Va DESPUÉS del contenido y más
+   chica: matiza lo que se acaba de leer, no compite con ello. */
+.section-note {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: #3F4A42;
+  max-width: 640px;
+  margin-top: 1.1rem;
 }
 
 .center {
@@ -902,11 +941,18 @@ textarea:focus {
   background: rgba(0, 0, 0, 0.4);
 }
 
+/* El alto está acotado a propósito y el cuadro se desplaza por dentro.
+   Con el registro nuevo (razón social, nombre comercial, RFC y tres
+   casillas) el formulario pasó a ser más alto que muchas pantallas, y
+   como .auth-modal es fixed, lo que sobresalía quedaba fuera de
+   alcance: no se podía llegar al botón de crear cuenta. */
 .auth-modal-content {
   position: relative;
   max-width: 420px;
   width: 90%;
-  margin: 80px auto;
+  margin: 6vh auto;
+  max-height: 88vh;
+  overflow-y: auto;
   background: #ffff;
   border-radius: 16px;
   padding: 24px 24px 28px;
@@ -965,6 +1011,54 @@ textarea:focus {
   color: #555;
   margin-top: 4px;
   margin-bottom: 12px;
+}
+
+/* Texto de ayuda debajo de un campo: qué escribir, no un error. */
+.form-hint {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #5a625b;
+  margin-top: 0.3rem;
+}
+
+/* El aviso del rol principal solo existe con dos o más casillas. */
+#signup-role-aviso:empty {
+  display: none;
+}
+
+/* Casillas de "tipo de empresa". La regla `input { width: 100% }` de
+   más arriba está pensada para campos de texto: aplicada a una casilla
+   la convierte en un cuadro enorme, así que aquí se desarma.
+   Los selectores llevan `.signup-roles` delante para ganarle a
+   `.form-group label`, que pone display:block y negrita. */
+.signup-roles {
+  border: 1px solid var(--border-soft);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.9rem 0.8rem;
+}
+
+.signup-roles legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e1e1d;
+  padding: 0 0.3rem;
+}
+
+.signup-roles .signup-role-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.signup-roles .signup-role {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
 }
 
 /* Labels dentro del modal de auth */
@@ -1036,9 +1130,19 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+/* El reset de arriba quita el margen a todo, así que estas líneas
+   —rol, miembro desde, Score— salían pegadas unas a otras y se leían
+   como un párrafo corrido. */
+.profile-header p {
+  margin-top: 0.35rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .profile-logo {
   width: 72px;
   height: 72px;
+  flex: 0 0 72px;   /* sin esto el flex lo aplasta a un óvalo cuando el texto de al lado es largo */
   border-radius: 50%;
   background: #f0f0f0;
   display: flex;
@@ -1313,6 +1417,35 @@ a.btn-outline:hover,
   /* Cuando el menú está abierto */
   .nav-links.nav-open {
     display: flex;
+  }
+}
+
+/* En laptop angosta caben los seis enlaces y los dos botones, pero
+   justo. Apretarlos un poco evita que la barra reviente antes de que
+   entre la hamburguesa a los 900px. */
+@media (max-width: 1150px) and (min-width: 901px) {
+  .nav-links {
+    gap: 0.9rem;
+  }
+
+  .nav-links a {
+    font-size: 0.82rem;
+  }
+}
+
+/* En celular, "Mi cuenta" y "Cerrar sesión" no caben en la misma fila
+   que el logo: se salían por la derecha y empujaban al logo encima de
+   la hamburguesa. Bajan a su propio renglón, los dos visibles y
+   separados. */
+@media (max-width: 600px) {
+  .navbar-content {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .navbar-auth {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 

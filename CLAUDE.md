@@ -12,6 +12,49 @@ cumplimiento ambiental encima.
 
 Idioma del proyecto: **español**. Código, comentarios, commits, UI y
 documentación en español. Mantenerlo.
+---
+
+## 0. Hacia dónde va el proyecto (leer primero)
+
+El modelo de negocio cambió en septiembre de 2026. Dos documentos describen el destino:
+
+- `docs/documento-maestro.md`: el modelo de negocio completo (qué es Eco Connect y por qué).
+- `docs/cambios-plataforma.md`: qué cambia en la plataforma, módulo por módulo, y en qué orden (sección 13).
+
+⚠️ Esos documentos describen lo que se va a construir, **no lo que existe**. Este archivo
+y `CONTRATO-RLS.md` describen el código actual. Si el plan contradice este archivo, este
+archivo manda hasta que el cambio esté hecho; al terminarlo, se actualiza este archivo.
+
+El avance se lleva en `docs/plan-de-trabajo.md`.
+
+## 0.1 Alcance del prototipo
+
+Eco Connect se está preparando para un pitch. La prioridad es que las pantallas se vean
+completas; lo que pasa "detrás" se simula o se deja para después.
+
+**Se simula (se ve, pero no funciona de verdad):**
+- Pagos: pantalla con desglose y CLABE de ejemplo; un botón "Simular pago recibido" cambia el estado. Sin Stripe.
+- Manifiesto: vista previa en HTML con los datos de la operación; firmas como pasos marcados. Sin PDF ni doc2sign.
+- Score, calificaciones, bitácora y reporte ESG: se muestran con datos de ejemplo o archivos fijos.
+- Revisión de expedientes: el estado de la cuenta se cambia a mano desde el panel de Supabase.
+
+**No se construye todavía:**
+- Tareas automáticas (vigencias, bloqueo a 72 horas, aviso a 25 días) y avisos por correo.
+- Panel interno del equipo, resolución de disputas y reembolsos.
+- Regla de 24 horas para cotizar y flota propia.
+- Claves oficiales del catálogo de residuos (usar un texto provisional).
+
+**Lo que NO se relaja:**
+- Toda tabla nueva lleva RLS activo y políticas de propiedad (cada empresa modifica solo lo suyo).
+- Nada de HTML construido con interpolación (sección 4.4).
+- Los estados de cuenta pueden controlarse solo en pantalla durante el prototipo, pero deben quedar
+  anotados como pendiente de seguridad en la sección 7.
+
+**Pruebas:** las pruebas de la sección 5 solo son obligatorias para lo que se construye de verdad,
+no para lo simulado.
+
+Cuando se simule algo, dejar un comentario `// SIMULADO:` en el código explicando qué hará la
+versión real, para encontrarlo fácil después.
 
 ---
 
@@ -107,6 +150,20 @@ Está en el PATH de usuario: un shell nuevo lo encuentra, uno ya abierto no.
 CORS los `<script type="module">` cargados con `file://`; abrir el HTML a doble
 clic deja la página en blanco. Usar `npm run servir` o **Live Server** de VS Code.
 
+**En PowerShell, `npm` falla con `UnauthorizedAccess`** (visto el 2026-09-22). No
+es el proyecto: en Windows PowerShell el comando es el script `npm.ps1`, y la
+política de ejecución viene en `Restricted` de fábrica (`Get-ExecutionPolicy
+-List` muestra `CurrentUser` en `Undefined`). Dos salidas:
+
+- `npm.cmd run servir` / `npm.cmd test` — el `.cmd` se salta el envoltorio y no
+  cambia nada del sistema.
+- `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` — de una
+  vez y sin administrador.
+
+Despista porque el mismo comando funciona en otras terminales: cmd, Git Bash y
+los shells de las herramientas suelen correr con la política en `Bypass`. Si un
+informe dice que `npm test` pasó, puede venir de un shell así.
+
 Vercel CLI no está instalado, así que `/api/contacto` **solo se puede probar en
 un deploy**. Sus variables (`RESEND_API_KEY`, `CORREO_DESTINO`) van en el panel
 de Vercel; `.env.local` es solo para `vercel dev` si algún día se instala.
@@ -117,11 +174,19 @@ de Vercel; `.env.local` es solo para `vercel dev` si algún día se instala.
 
 `profiles.company_type` tiene tres valores y determina la navegación completa:
 
-| Rol | Páginas |
-|---|---|
-| `proveedor` | `publicar-residuos`, `mis-residuos`, `gestion-ambiental` |
-| `comprador` | `comprador-explorar-residuos`, `comprador-mis-intereses`, `comprador-servicios-transporte` (+ las dos de detalle) |
-| `logistica` | `publicar-servicio-transporte`, `mis-servicios-transporte`, `transporte-responsable` |
+| Rol | Se lee en pantalla como | Páginas |
+|---|---|---|
+| `proveedor` | Generador de residuos | `publicar-residuos`, `mis-residuos`, `gestion-ambiental` |
+| `comprador` | Comprador industrial | `comprador-explorar-residuos`, `comprador-mis-intereses`, `comprador-servicios-transporte` (+ las dos de detalle) |
+| `logistica` | Transportista | `publicar-servicio-transporte`, `mis-servicios-transporte`, `transporte-responsable` |
+
+**El identificador y la etiqueta son cosas distintas, y a propósito** (decisión
+D-4 de `docs/plan-de-trabajo.md`, 2026-09-22). El vocabulario del documento
+maestro §05 es Generador / Comprador / Transportista, pero de `proveedor` y
+`logistica` cuelgan `mi_rol()` y las cinco políticas de escritura del
+CONTRATO-RLS: renombrarlos en la base sería un cambio de seguridad, no de copy.
+La traducción vive en un solo sitio, `ETIQUETAS_ROL` (`data/perfiles.js`), y la
+fija `capa-datos.test.js`.
 
 Los links del dropdown se declaran una sola vez, en `ui/estructura.js`, marcados
 con `data-role`. `ui/navbar.js` muestra los del rol activo y oculta el resto, con
@@ -139,6 +204,26 @@ carga. La conexión se importa desde `js/core/supabase.js`.
 
 La llave que contiene es la *publishable* (pública por diseño); lo que protege
 los datos son las políticas RLS.
+
+### El alta de cuenta (actualizada el 2026-09-22)
+
+`ui/auth-modal.js` es el único formulario de registro del sitio: lo inyecta en las
+13 páginas. **Antes `index.html` tenía su propia copia** y había que mantener las
+dos iguales a mano; con tres campos nuevos, registrarse desde la portada y desde
+dentro habría acabado guardando datos distintos.
+
+Manda a `signUp()` seis datos en `options.data`, y de ahí los copia el trigger:
+razón social (`company_name`), `nombre_comercial`, `rfc`, `company_type` (el rol
+principal), `roles` (todos los marcados) y el correo.
+
+El rol principal es **la primera casilla marcada en el orden Generador →
+Comprador → Transportista**, no la primera que se pulsa: de él cuelgan el menú y
+las políticas de escritura, así que dos empresas que marcan lo mismo tienen que
+acabar con lo mismo. Lo fija `registro.test.js`.
+
+> ⚠️ `rfc` y `roles` los escribe el trigger, nunca el navegador, y no están en el
+> `grant update` de `profiles`. Ver [C9](CONTRATO-RLS.md) — sin eso, una empresa
+> podría reescribir su RFC después de que el equipo lo cotejara con el padrón.
 
 ### Tablas (9)
 
@@ -348,6 +433,14 @@ Por orden de valor:
    punto 1: fija §1.1 (versiones exactas, CDN y fuentes) y §4.1 (qué capa puede
    importar de cuál, sin ciclos ni huérfanos). Ocupa el hueco que en otros
    proyectos llenan el linter y el bundler, que aquí no existen.
+6. **Las promesas que el sitio no puede hacer** (`textos-sitio.test.js`). Otro
+   caso del punto 1, pero sobre el copy: ninguna página puede decir
+   "certificación EcoConnect", "proveedores verificados" ni "recicladores
+   certificados". No es estilo — la cláusula de deslinde del documento maestro
+   §06 se cae si una página promete lo contrario, y quien escriba la próxima
+   sección de la portada no va a tener ese documento delante. Lleva su control
+   positivo: si la lista de archivos quedara vacía, las tres prohibiciones
+   pasarían solas.
 
 ### 5.3 Qué NO se prueba
 

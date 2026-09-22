@@ -45,8 +45,35 @@ function pintar(perfil, usuario) {
   const nombre = el("profile-company-name");
   if (nombre) nombre.textContent = perfil?.company_name || "Sin nombre";
 
+  // "Mi rol" en singular contradecía la lista de tipos de empresa de
+  // más abajo, que puede traer tres. Se dice cuál manda —el que decide
+  // menú y permisos— y cuáles se registraron además.
   const tipo = el("profile-company-type");
-  if (tipo) tipo.textContent = `Mi rol en EcoConnect: ${etiquetaRol(perfil?.company_type)}`;
+  if (tipo) {
+    const principal = etiquetaRol(perfil?.company_type);
+    const otros = (perfil?.roles || [])
+      .filter((rol) => rol !== perfil?.company_type)
+      .map(etiquetaRol)
+      .filter((etiqueta) => etiqueta !== "—");
+    tipo.textContent = otros.length
+      ? `Rol principal: ${principal} · También registrada como: ${otros.join(", ")}`
+      : `Rol principal: ${principal}`;
+  }
+
+  const comercial = el("profile-trade-name");
+  if (comercial) comercial.textContent = perfil?.nombre_comercial || "—";
+
+  const rfc = el("profile-rfc");
+  if (rfc) rfc.textContent = perfil?.rfc || "—";
+
+  // Los roles marcados al registrarse. El menú solo usa el principal
+  // (D-3), pero aquí se ven todos: es la única pantalla donde se puede
+  // comprobar que el dato se guardó completo.
+  const roles = el("profile-roles");
+  if (roles) {
+    const lista = (perfil?.roles || []).map(etiquetaRol).filter((x) => x !== "—");
+    roles.textContent = lista.length ? lista.join(" · ") : "—";
+  }
 
   const correo = el("profile-email");
   if (correo) correo.textContent = perfil?.email || usuario.email || "—";
@@ -59,8 +86,10 @@ function pintar(perfil, usuario) {
     desde.textContent = `Miembro Eco Connect desde: ${new Date(perfil.created_at).getFullYear()}`;
   }
 
-  const certificacion = el("profile-certification");
-  if (certificacion) certificacion.textContent = "Certificación: No verificado";
+  // El Score todavía no se calcula (docs/plan-de-trabajo.md, bloque 3):
+  // hasta entonces se dice qué lo activa, no un número inventado.
+  const score = el("profile-certification");
+  if (score) score.textContent = "EcoConnect Score: se calcula con tu primera operación";
 
   if (campoUbicacion) campoUbicacion.value = perfil?.location || "";
 

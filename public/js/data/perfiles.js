@@ -7,10 +7,14 @@ import { subirArchivos, urlPublica } from "../core/almacenamiento.js";
 
 const BUCKET_LOGOS = "company-logos";
 
+// Los identificadores internos (`proveedor`, `logistica`) no cambian:
+// de ellos cuelgan mi_rol() y las cinco políticas de escritura del
+// CONTRATO-RLS. Aquí solo se traduce a lo que lee el usuario, que es
+// el vocabulario de docs/documento-maestro.md §05.
 export const ETIQUETAS_ROL = {
   comprador: "Comprador industrial",
-  proveedor: "Proveedor de residuos",
-  logistica: "Proveedor de transporte y logística",
+  proveedor: "Generador de residuos",
+  logistica: "Transportista",
 };
 
 export function etiquetaRol(rol) {

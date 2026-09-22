@@ -101,7 +101,7 @@ if (!servicioId) {
 
         const { usuario } = await obtenerSesion();
         if (!usuario) {
-          mostrarMensaje("Debes iniciar sesión para contactar al proveedor.", "error");
+          mostrarMensaje("Debes iniciar sesión para contactar al transportista.", "error");
           return;
         }
         if (usuario.id === servicio.user_id) {
@@ -139,7 +139,7 @@ if (!servicioId) {
         panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      // Quien llega desde "Contactar proveedor logístico" en la lista
+      // Quien llega desde "Contactar transportista" en la lista
       // ya decidió que quiere escribir: se le abre el hilo directamente.
       if (parametros.get("contactar") === "1") botonContactar?.click();
 

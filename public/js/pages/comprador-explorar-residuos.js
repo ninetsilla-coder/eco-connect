@@ -49,7 +49,7 @@ function crearTarjeta(residuo, empresa) {
   // `contactar=1` hace que el detalle abra el hilo al llegar.
   const botonContacto = document.createElement("button");
   botonContacto.className = "btn-primary";
-  botonContacto.textContent = "Contactar proveedor";
+  botonContacto.textContent = "Contactar generador";
   botonContacto.addEventListener("click", () => {
     window.location.href = `comprador-detalle-residuo.html?id=${residuo.id}&contactar=1`;
   });

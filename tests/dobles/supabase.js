@@ -16,6 +16,11 @@ export const registro = {
   respuestas: new Map(),
   sesion: null,
   suscriptores: [],
+  // Altas de cuenta y llamadas a funciones de la base (rpc). Se anotan
+  // igual que las consultas: el alta manda el rol y el RFC, y eso hay
+  // que poder afirmarlo sin salir a la red.
+  altas: [],
+  rpc: [],
 };
 
 export function reiniciar() {
@@ -24,6 +29,8 @@ export function reiniciar() {
   registro.respuestas.clear();
   registro.sesion = null;
   registro.suscriptores.length = 0;
+  registro.altas.length = 0;
+  registro.rpc.length = 0;
 }
 
 // Programa la respuesta para una tabla. Sin programar: { data: null }.
@@ -117,6 +124,12 @@ export function createClient() {
   return {
     from: constructor,
     storage: { from: almacenamiento },
+    // Funciones de la base (public.rfc_disponible, etc.). Se programan
+    // por nombre, igual que las tablas: programar("rfc_disponible", ...)
+    rpc: async (nombre, argumentos) => {
+      registro.rpc.push({ nombre, argumentos });
+      return respuestaDe(nombre);
+    },
     auth: {
       getSession: async () => ({ data: { session: registro.sesion }, error: null }),
       getUser: async () => ({
@@ -124,7 +137,11 @@ export function createClient() {
         error: null,
       }),
       signOut: async () => ({ error: null }),
-      signUp: async () => ({ data: { user: null }, error: null }),
+      signUp: async (payload) => {
+        registro.altas.push(payload);
+        return registro.respuestas.get("auth.signUp")
+          ?? { data: { user: null }, error: null };
+      },
       signInWithPassword: async () => ({ data: {}, error: null }),
       onAuthStateChange: (callback) => {
         registro.suscriptores.push(callback);

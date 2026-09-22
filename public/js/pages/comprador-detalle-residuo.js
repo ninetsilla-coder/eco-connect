@@ -112,7 +112,7 @@ if (!residuoId) {
 
         const { usuario } = await obtenerSesion();
         if (!usuario) {
-          mostrarMensaje("Debes iniciar sesión para contactar al proveedor.", "error");
+          mostrarMensaje("Debes iniciar sesión para contactar al generador.", "error");
           return;
         }
         if (usuario.id === residuo.user_id) {
@@ -152,7 +152,7 @@ if (!residuoId) {
         panelMensajes.scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      // Quien llega desde "Contactar proveedor" en la lista ya decidió
+      // Quien llega desde "Contactar generador" en la lista ya decidió
       // que quiere escribir: se le abre el hilo sin un clic de más.
       if (parametros.get("contactar") === "1") botonContactar?.click();
 
