@@ -331,6 +331,19 @@ button:disabled {
   box-shadow: none;
 }
 
+/* Si quien publica tiene registro para ESE material. Las
+   autorizaciones de la SMA son por residuo: tener papeles no basta. */
+.badge-amparo {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.badge-amparo:empty { display: none; }
+.badge-amparo.ok    { color: #166534; }
+.badge-amparo.sin   { color: #b91c1c; }
+
 /* Insignias del perfil (cambios-plataforma §3). */
 .insignias {
   display: flex;

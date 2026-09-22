@@ -368,6 +368,19 @@ la autorización de transporte es de quien la tramitó, no de cada anuncio.
 > La vista vieja se conserva por ahora —su tabla tampoco se tocó—, pero **ya no
 > la lee nadie**. Al decidir qué hacer con esos datos, se van las dos juntas.
 
+**Una columna más, el mismo día y a propósito.** `expediente_resumen` añade
+`materiales_amparados`: la lista de materiales que amparan las autorizaciones de
+esa empresa. Es un **cambio de contrato** —sale de la vista, así que lo lee
+cualquiera con sesión— y se acepta por dos razones:
+
+- Es información que la empresa **ya publica**: no puede vender un material sin
+  anunciarlo, ni ofrecer transporte sin decir de qué.
+- Sin ella, el comprador no puede comprobar lo que el marco legal le exige: que
+  quien le vende tenga permiso **para ese residuo**, no papeles en general.
+
+Lo que sigue sin salir de esa vista: números de oficio, fechas, rutas de archivo
+y razón social. Solo booleanos y una lista de materiales.
+
 **Consecuencia:** es la única pieza del esquema sin política que la respalde, así
 que su seguridad vive entera en la lista de columnas del `select`. Las pruebas 17
 y 18 de §5 la acotan por los dos lados — que no devuelva las rutas, y que el

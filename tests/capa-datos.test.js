@@ -11,7 +11,6 @@ import assert from "node:assert/strict";
 
 import { reiniciar, registro, programar, ultimaConsulta } from "./dobles/supabase.js";
 
-import { agruparPorResiduo } from "../public/js/data/cumplimiento.js";
 import { etiquetaRol, actualizarPerfil } from "../public/js/data/perfiles.js";
 import {
   guardarInteres,
@@ -154,36 +153,6 @@ describe("intereses", () => {
   test("devuelve true cuando ya existe", async () => {
     programar("intereses", { data: { id: "i-1" }, error: null });
     assert.equal(await existeInteres(USUARIO, TIPO_RESIDUO, "r-4"), true);
-  });
-});
-
-// ==============================================================
-// Agrupaciones para los badges
-// ==============================================================
-
-describe("agruparPorResiduo", () => {
-  test("junta los tipos de cada residuo", () => {
-    const mapa = agruparPorResiduo([
-      { residuo_id: "r-1", tipo: "documentacion" },
-      { residuo_id: "r-1", tipo: "condiciones" },
-      { residuo_id: "r-2", tipo: "practicas" },
-    ]);
-
-    assert.deepEqual([...mapa["r-1"]].sort(), ["condiciones", "documentacion"]);
-    assert.deepEqual([...mapa["r-2"]], ["practicas"]);
-  });
-
-  test("los duplicados no cuentan dos veces", () => {
-    const mapa = agruparPorResiduo([
-      { residuo_id: "r-1", tipo: "documentacion" },
-      { residuo_id: "r-1", tipo: "documentacion" },
-    ]);
-
-    assert.equal(mapa["r-1"].size, 1);
-  });
-
-  test("sin filas devuelve un mapa vacío", () => {
-    assert.deepEqual(agruparPorResiduo([]), {});
   });
 });
 

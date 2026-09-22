@@ -210,7 +210,7 @@ const TEXTOS = {
   procesado: {
     titulo: "Publicar residuo procesado y limpio",
     subtitulo:
-      "Describe el material ya procesado para que los recicladores entiendan en qué estado lo recibirán.",
+      "Describe el material ya procesado para que el comprador entienda en qué estado lo recibirá.",
   },
 };
 
@@ -220,7 +220,7 @@ function abrirFormulario(categoria) {
   const textos = TEXTOS[categoria] ?? {
     titulo: "Publicar residuo",
     subtitulo:
-      "Completa los datos del residuo para que los recicladores puedan evaluar la oportunidad.",
+      "Completa la ficha técnica para que un comprador autorizado pueda evaluar el lote.",
   };
 
   const titulo = document.getElementById("form-title");

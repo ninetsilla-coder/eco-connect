@@ -4,7 +4,12 @@
 
 import { montarNavbar } from "../ui/navbar.js";
 import { buscarDisponibles, textoPrecio, textoCantidad } from "../data/residuos.js";
-import { etiqueta, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO } from "../data/materiales.js";
+import {
+  etiqueta, idPorNombre, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO,
+} from "../data/materiales.js";
+import {
+  listarResumenDeEmpresas, agruparResumen, estadoAmparo,
+} from "../data/expediente.js";
 import { nombresDeEmpresas } from "../data/mensajes.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { crearTarjetaResiduo } from "../ui/residuo-card.js";
@@ -93,10 +98,50 @@ function crearTarjeta(residuo, empresa) {
 
   bloquearSiNoOpera(botonContacto, estadoCuenta, { accion: "contactar" });
 
+  // Si el generador tiene registro para ESTE material. Tener papeles no
+  // basta: las autorizaciones de la SMA son por residuo, y comprarle un
+  // lote a quien no lo tiene amparado deja al comprador con un
+  // manifiesto que no cuadra.
+  const amparo = document.createElement("span");
+  amparo.className = "badge-amparo";
+  amparo.dataset.empresaId = residuo.user_id;
+  amparo.dataset.material = idPorNombre(residuo.tipo) ?? "";
+  item.appendChild(amparo);
+
   acciones.append(botonDetalle, botonContacto);
   item.appendChild(acciones);
 
   return item;
+}
+
+// Si la empresa que publica tiene su registro para ese material.
+//
+// Cuando no lo sabemos —todavía no declaró materiales— la insignia se
+// queda vacía. Un "no se sabe" pintado como advertencia acusaría a
+// empresas que solo llegaron antes que el campo.
+async function pintarAmparos(idsEmpresas) {
+  const insignias = document.querySelectorAll(".badge-amparo");
+  if (!insignias.length) return;
+
+  let mapa = {};
+  try {
+    mapa = agruparResumen(await listarResumenDeEmpresas(idsEmpresas));
+  } catch (err) {
+    console.warn("No se pudo comprobar el registro de los generadores:", err);
+    return;
+  }
+
+  insignias.forEach((insignia) => {
+    const estado = estadoAmparo(mapa[insignia.dataset.empresaId], insignia.dataset.material);
+
+    if (estado === "amparado") {
+      insignia.textContent = "El generador tiene registro para este material";
+      insignia.classList.add("ok");
+    } else if (estado === "no-amparado") {
+      insignia.textContent = "Este material no aparece en el registro del generador";
+      insignia.classList.add("sin");
+    }
+  });
 }
 
 async function cargarResiduos() {
@@ -130,6 +175,7 @@ async function cargarResiduos() {
       residuos.forEach((residuo) =>
         lista.appendChild(crearTarjeta(residuo, empresas[residuo.user_id]))
       );
+      await pintarAmparos(residuos.map((r) => r.user_id));
     }
   } catch (err) {
     console.error("Error cargando residuos:", err);

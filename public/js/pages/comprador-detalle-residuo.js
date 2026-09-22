@@ -8,7 +8,10 @@ import { obtenerResiduo, textoPrecio, textoCantidad } from "../data/residuos.js"
 import {
   etiqueta, idPorNombre, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO,
 } from "../data/materiales.js";
-import { listarMiExpediente, amparaMaterial } from "../data/expediente.js";
+import {
+  listarMiExpediente, amparaMaterial,
+  listarResumenDeEmpresas, agruparResumen, estadoAmparo,
+} from "../data/expediente.js";
 import { existeInteres, guardarInteres, TIPO_RESIDUO } from "../data/intereses.js";
 import {
   listarMensajesDePublicacion,
@@ -131,6 +134,41 @@ function pintar(residuo, empresa) {
 
   const descripcion = crearDescripcion(residuo.descripcion);
   if (descripcion) principal.appendChild(descripcion);
+
+  // Si el generador tiene registro para ESTE material. En la lista es
+  // una pista; aquí, donde se decide contactar, es el dato que evita
+  // una operación con un manifiesto que no va a cuadrar.
+  const amparo = document.createElement("p");
+  amparo.className = "badge-amparo";
+  principal.appendChild(amparo);
+  pintarAmparoDelGenerador(amparo, residuo);
+}
+
+async function pintarAmparoDelGenerador(elemento, residuo) {
+  const material = idPorNombre(residuo.tipo);
+  if (!material) return;
+
+  let resumen = null;
+  try {
+    resumen = agruparResumen(await listarResumenDeEmpresas([residuo.user_id]))[residuo.user_id];
+  } catch (err) {
+    console.warn("No se pudo comprobar el registro del generador:", err);
+    return;
+  }
+
+  const estado = estadoAmparo(resumen, material);
+
+  // Sin datos no se pinta nada: que una empresa no haya declarado sus
+  // materiales todavía no es una señal en su contra.
+  if (estado === "amparado") {
+    elemento.textContent = "El generador tiene registro para este material";
+    elemento.classList.add("ok");
+  } else if (estado === "no-amparado") {
+    elemento.textContent =
+      "Este material no aparece en el registro del generador. " +
+      "Pídeselo antes de cerrar la operación: el manifiesto lo necesita.";
+    elemento.classList.add("sin");
+  }
 }
 
 // ==============================================================

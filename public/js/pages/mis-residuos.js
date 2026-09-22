@@ -7,8 +7,10 @@ import { obtenerSesion } from "../core/sesion.js";
 import {
   listarMios, cambiarEstadoResiduo, textoPrecio, textoCantidad,
 } from "../data/residuos.js";
-import { etiqueta, PERIODICIDADES, CONDICIONES } from "../data/materiales.js";
-import { listarGestionDeResiduos, agruparPorResiduo } from "../data/cumplimiento.js";
+import { etiqueta, idPorNombre, PERIODICIDADES, CONDICIONES } from "../data/materiales.js";
+import {
+  listarResumenDeEmpresas, agruparResumen, estadoAmparo,
+} from "../data/expediente.js";
 import {
   listarMensajesDePublicacion,
   enviarMensaje,
@@ -61,16 +63,18 @@ function crearTarjeta(residuo, usuarioId) {
   const izquierda = document.createElement("div");
   izquierda.className = "residuo-actions-left";
 
-  const badgeGestion = document.createElement("span");
-  badgeGestion.className = "badge-gestion";
-  badgeGestion.dataset.residuoId = residuo.id;
-  badgeGestion.textContent = "Cargando gestión ambiental...";
+  // Antes aquí había una insignia de "gestión ambiental" que leía la
+  // pantalla borrada en el 2026-09-22, y un enlace a esa página que ya
+  // no existe. Lo sustituye lo que de verdad importa de un residuo
+  // publicado: si tu registro ampara ESE material. Tener papeles no
+  // basta —las autorizaciones de la SMA son por residuo—, y un lote
+  // publicado sin amparo es el que te deja expuesto ante la SMA.
+  const badgeAmparo = document.createElement("span");
+  badgeAmparo.className = "badge-gestion";
+  badgeAmparo.dataset.material = idPorNombre(residuo.tipo) ?? "";
+  badgeAmparo.textContent = "Comprobando tu registro...";
 
-  const enlaceGestion = document.createElement("a");
-  enlaceGestion.href = "gestion-ambiental.html";
-  enlaceGestion.textContent = "Gestionar";
-
-  izquierda.append(badgeGestion, enlaceGestion);
+  izquierda.append(badgeAmparo);
 
   const botonEditar = document.createElement("button");
   botonEditar.className = "btn-secondary";
@@ -154,40 +158,42 @@ function crearTarjeta(residuo, usuarioId) {
   return item;
 }
 
-async function pintarBadgesGestion(residuos) {
+// ¿Tu registro ampara el material de cada publicación? Se lee el propio
+// expediente una sola vez: el amparo es de la empresa, no de cada lote.
+async function pintarBadgesAmparo(usuarioId) {
+  let resumen = null;
+
   try {
-    const filas = await listarGestionDeResiduos(residuos.map((r) => r.id));
-    const mapa = agruparPorResiduo(filas);
-
-    document.querySelectorAll(".badge-gestion").forEach((badge) => {
-      const tipos = mapa[badge.dataset.residuoId];
-      const doc = tipos?.has("documentacion") ?? false;
-      const cond = tipos?.has("condiciones") ?? false;
-      const prac = tipos?.has("practicas") ?? false;
-      const marca = (v) => (v ? "✓" : "✗");
-      const resumen = `Doc ${marca(doc)} · Cond ${marca(cond)} · Prác ${marca(prac)}`;
-
-      if (!tipos) {
-        badge.textContent = `Sin gestión ambiental · ${resumen}`;
-        badge.classList.add("sin");
-      } else if (doc && cond && prac) {
-        badge.textContent = `Gestión ambiental completa · ${resumen}`;
-        badge.classList.add("ok");
-      } else {
-        badge.textContent = `Gestión ambiental parcial · ${resumen}`;
-        badge.classList.add("parcial");
-      }
-    });
+    resumen = agruparResumen(await listarResumenDeEmpresas([usuarioId]))[usuarioId];
   } catch (err) {
-    // Sin esto los badges se quedaban en "Cargando gestión
-    // ambiental..." para siempre: el mismo fallo silencioso que ya se
-    // corrigió en los de transporte.
-    console.error("Error cargando gestión ambiental:", err);
-
+    // Sin esto los badges se quedaban en "Comprobando..." para siempre:
+    // el mismo fallo silencioso que ya se corrigió en los de transporte.
+    console.error("Error consultando tu registro:", err);
     document.querySelectorAll(".badge-gestion").forEach((badge) => {
-      badge.textContent = "No se pudo consultar la gestión ambiental";
+      badge.textContent = "No se pudo comprobar tu registro";
     });
+    return;
   }
+
+  document.querySelectorAll(".badge-gestion").forEach((badge) => {
+    const material = badge.dataset.material;
+    const estado = estadoAmparo(resumen, material);
+
+    badge.classList.remove("ok", "parcial", "sin");
+
+    if (estado === "amparado") {
+      badge.textContent = "Amparado por tu registro";
+      badge.classList.add("ok");
+    } else if (estado === "no-amparado") {
+      // Publicar un material que tu registro no cubre es justo lo que
+      // te deja expuesto ante la SMA. Se dice claro, no en gris.
+      badge.textContent = "Tu registro no ampara este material";
+      badge.classList.add("sin");
+    } else {
+      badge.textContent = "Marca este material en tu registro de generador";
+      badge.classList.add("parcial");
+    }
+  });
 }
 
 // ==============================================================
@@ -216,7 +222,7 @@ if (!usuario) {
       }
       contenedor.innerHTML = "";
       residuos.forEach((r) => contenedor.appendChild(crearTarjeta(r, usuario.id)));
-      await pintarBadgesGestion(residuos);
+      await pintarBadgesAmparo(usuario.id);
     }
   } catch (err) {
     console.error(err);

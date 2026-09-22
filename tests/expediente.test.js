@@ -23,7 +23,7 @@ import {
   documentosDeRol, bloquesDeRol, faltantes, puedeEnviarse, expedienteCompleto,
   materialesAmparados, amparaMaterial, admiteVarios, filasDe,
   bloquesDePantalla, documentosDePantalla, faltantesPorPantalla,
-  listarResumenDeEmpresas, agruparResumen, resumirTransporte,
+  listarResumenDeEmpresas, agruparResumen, resumirTransporte, estadoAmparo,
 } from "../public/js/data/expediente.js";
 import { textoPendientes } from "../public/js/ui/expediente-pantalla.js";
 
@@ -352,6 +352,33 @@ describe("de dónde sale la documentación de transporte", () => {
     assert.equal(mapa["u-1"].tiene_autorizacion, true);
     assert.equal(mapa["u-2"].tiene_seguro, true);
     assert.equal(mapa["u-3"], undefined);
+  });
+});
+
+// Tener papeles no basta: las autorizaciones de la SMA son por
+// residuo. Un generador con su registro en regla pero sin ese material
+// amparado no puede vender ese lote, y el comprador se queda con un
+// manifiesto que no cuadra.
+describe("si una empresa ampara un material", () => {
+  const resumen = { materiales_amparados: ["acero", "pet"] };
+
+  test("distingue amparado de no amparado", () => {
+    assert.equal(estadoAmparo(resumen, "acero"), "amparado");
+    assert.equal(estadoAmparo(resumen, "cobre"), "no-amparado");
+  });
+
+  // Tres respuestas y no dos. "Sin datos" no es "no amparado": una
+  // empresa que todavía no declaró materiales no ha hecho nada mal, y
+  // pintarla como infractora sería acusarla por llegar antes que el
+  // campo.
+  test("sin materiales declarados la respuesta es 'sin datos'", () => {
+    assert.equal(estadoAmparo({ materiales_amparados: [] }, "acero"), "sin-datos");
+    assert.equal(estadoAmparo(undefined, "acero"), "sin-datos");
+  });
+
+  test("sin material que comprobar tampoco acusa", () => {
+    assert.equal(estadoAmparo(resumen, null), "sin-datos");
+    assert.equal(estadoAmparo(resumen, ""), "sin-datos");
   });
 });
 

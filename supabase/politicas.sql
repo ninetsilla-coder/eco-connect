@@ -996,6 +996,17 @@ alter table public.expediente_documentos
 -- `transporte_cumplimiento_resumen` (§8.1), que leía la tabla de la
 -- pantalla vieja de transporte responsable.
 
+-- `materiales_amparados` es la unión de los materiales de TODAS sus
+-- autorizaciones. Se añadió el 2026-09-22 y es un cambio de contrato
+-- deliberado: sale de esta vista, así que lo lee cualquiera con sesión.
+--
+-- Se acepta porque es información que esa empresa ya publica —no puede
+-- vender un material sin anunciarlo— y porque sin ella el comprador no
+-- puede saber si quien le vende tiene permiso para ese residuo en
+-- concreto, que es justo lo que el marco legal exige comprobar.
+--
+-- Lo que sigue SIN salir de aquí: números de oficio, fechas, rutas de
+-- archivo y razón social. Solo booleanos y una lista de materiales.
 create or replace view public.expediente_resumen
 with (security_invoker = false) as
 select e.user_id,
@@ -1004,8 +1015,13 @@ select e.user_id,
        bool_or(e.tipo_documento = 'vehiculos'
                and e.notas is not null)        as tiene_vehiculos,
        bool_or(e.tipo_documento = 'poliza_seguro'
-               and e.archivo_ruta is not null) as tiene_seguro
+               and e.archivo_ruta is not null) as tiene_seguro,
+       coalesce(
+         array_agg(distinct m) filter (where m is not null),
+         '{}'::text[]
+       ) as materiales_amparados
 from public.expediente_documentos e
+left join lateral unnest(coalesce(e.materiales, '{}'::text[])) as m on true
 group by e.user_id;
 
 revoke all on public.expediente_resumen from public;

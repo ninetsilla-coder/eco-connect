@@ -428,6 +428,42 @@ Se llega desde el menú: "Pago de una operación (ejemplo)" en comprador y "Mani
 (ejemplo)" en generador, cada uno del rol que lo usa en el flujo real. Cuando exista "Mis
 operaciones" (tarea 8), ese será el camino y estos enlaces sobran.
 
+### 18. [x] El amparo por material, a la vista (2026-09-22)
+
+Tener papeles no basta: las autorizaciones de la SMA son **por residuo**. Un generador con su
+registro en regla pero sin ese material amparado no puede vender ese lote, y el comprador se
+queda con un manifiesto que no cuadra.
+
+| Dónde | Qué dice |
+|---|---|
+| **Mis residuos** | "Amparado por tu registro" · "Tu registro no ampara este material" · "Marca este material en tu registro" |
+| **Explorar residuos** | "El generador tiene registro para este material" · "Este material no aparece en el registro del generador" |
+
+**Tres respuestas, no dos.** *Sin datos* no es *no amparado*: una empresa que todavía no
+declaró materiales no ha hecho nada mal, y pintarla como infractora sería acusarla por llegar
+antes que el campo. Cuando no se sabe, el comprador no ve nada y el dueño ve una invitación a
+completarlo.
+
+**Cambio de contrato, tomado a propósito:** la vista `expediente_resumen` añade
+`materiales_amparados`, así que esa lista la lee cualquiera con sesión. Se acepta porque es
+información que la empresa ya publica —no puede vender un material sin anunciarlo— y sin ella
+el comprador no puede comprobar lo que el marco legal le exige. Lo que sigue sin salir de ahí:
+oficios, fechas, archivos y razón social.
+
+**Sustituye a la insignia de "gestión ambiental"** de Mis residuos, que leía la pantalla
+borrada y decía "Sin gestión ambiental" para siempre en cualquier residuo nuevo. Con ella se
+fue el último lector de `data/cumplimiento.js`, así que el módulo y sus pruebas se borraron —
+lo detectó la prueba de módulos huérfanos, no una revisión a ojo. La tabla y su bucket siguen
+intactos.
+
+**También se arregló un enlace roto:** "Gestionar" en Mis residuos apuntaba a
+`gestion-ambiental.html`, borrada el mismo día.
+
+**Corrección de vocabulario.** Los textos decían que los varios registros son "por
+establecimiento". En la fase 1 solo se opera en Torreón, así que el motivo habitual es tener
+**varias autorizaciones para materiales distintos**. Ahora dicen las dos cosas sin afirmar
+una: *"por otros materiales o por otra planta"*.
+
 ### 16. [x] Lectura asistida de documentos, simulada (§0.1) — hecha el 2026-09-22
 
 Propuesta del equipo, 2026-09-22.

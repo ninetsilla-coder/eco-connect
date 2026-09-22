@@ -307,7 +307,10 @@ export const PANTALLAS = Object.freeze([
     titulo: "Mis autorizaciones",
     pagina: "autorizaciones.html",
     enlace: "Mis autorizaciones",
-    descripcion: "Lo que la SMA te autoriza. Se autoriza por establecimiento: si tienes varias plantas, agrega un registro por cada una.",
+    // En la fase 1 solo se opera en Torreón, así que el motivo habitual
+    // para tener varios registros no es tener varias plantas sino
+    // varias autorizaciones, cada una para materiales distintos.
+    descripcion: "Lo que la SMA te autoriza. Si tienes más de un registro —por otros materiales o por otra planta—, agrega uno por cada uno.",
   },
 ]);
 
@@ -531,11 +534,32 @@ export async function listarResumenDeEmpresas(usuarioIds) {
 
   const { data, error } = await supabaseClient
     .from("expediente_resumen")
-    .select("user_id, tiene_autorizacion, tiene_vehiculos, tiene_seguro")
+    .select("user_id, tiene_autorizacion, tiene_vehiculos, tiene_seguro, materiales_amparados")
     .in("user_id", ids);
 
   if (error) throw error;
   return data ?? [];
+}
+
+// ¿Esta empresa tiene permiso para ESTE material?
+//
+// Las autorizaciones de la SMA son por residuo, así que tener papeles
+// no basta: hay que tener los del material que se vende o se
+// transporta. Devuelve tres respuestas, no dos:
+//
+//   "amparado"     lo declaró en alguna de sus autorizaciones
+//   "no-amparado"  declaró materiales y este no está
+//   "sin-datos"    todavía no ha declarado ninguno
+//
+// `sin-datos` no es "no amparado". Es el mismo criterio de siempre: la
+// ausencia de dato no acusa a nadie, y quien lo pinte decide si calla.
+export function estadoAmparo(resumen, materialId) {
+  if (!materialId) return "sin-datos";
+
+  const amparados = resumen?.materiales_amparados ?? [];
+  if (!amparados.length) return "sin-datos";
+
+  return amparados.includes(materialId) ? "amparado" : "no-amparado";
 }
 
 // Devuelve { [userId]: fila }.
