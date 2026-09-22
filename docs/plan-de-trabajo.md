@@ -181,8 +181,23 @@ permiso de escritura, porque RLS no filtra columnas (misma trampa que C-3).
 - La tabla, su bucket y sus políticas **no se tocan**. Los datos siguen ahí hasta que se
   decida qué hacer con ellos.
 
-**"Transporte responsable" se queda** hasta que el bloque del transportista en el expediente
-esté terminado.
+**"Transporte responsable" también se cerró**, el 2026-09-22, al terminar el bloque del
+transportista en el expediente. No era solo una pantalla de más: al transportista se le
+pedían **los mismos papeles dos veces**, y la insignia que ve el comprador leía la tabla
+vieja, así que quien completara su expediente seguía apareciendo "sin documentación" ante
+quien iba a contratarlo. Es el defecto de las dos mitades hablando con tablas distintas que
+`CLAUDE.md` §7 ya documenta de septiembre, repetido por otra vía.
+
+- Se borraron `transporte-responsable.html`, su módulo, `ui/documentos.js` —que se quedaba
+  sin ninguna página— y su archivo de pruebas.
+- La insignia lee ahora la vista nueva `expediente_resumen`, **por empresa y no por
+  servicio**: la autorización es de quien la tramitó, no de cada anuncio.
+- Las pruebas que fijaban la fuente del badge se mudaron a `expediente.test.js`, apuntando a
+  la fuente nueva: son la regresión de ese defecto y no podían perderse en el borrado.
+- `data/cumplimiento.js` queda de **solo lectura** y `data/transporte.js` pierde su mitad de
+  cumplimiento. Las tablas, los buckets y las políticas **no se tocan**: los datos siguen ahí.
+- **Lo que se pierde:** los tres textos libres de "prácticas de manejo, regulaciones y
+  procedimientos". El modelo nuevo no los pide (cambios-plataforma §2) y nadie los leía.
 
 **Lo que no hace:** no lleva al expediente automáticamente tras registrarse (se entra por el
 menú), no hay panel del equipo, y el estado no bloquea todavía publicar ni contactar — eso

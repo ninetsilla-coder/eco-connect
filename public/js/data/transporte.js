@@ -137,60 +137,16 @@ export async function eliminarServicio(id, usuarioId) {
 // ==============================================================
 // Documentación de cumplimiento: qué tiene cada servicio
 // ==============================================================
-// Lee la vista transporte_cumplimiento_resumen (politicas.sql §8.1),
-// no la tabla. La tabla guarda las rutas de permisos, licencias y
-// seguros —documentación regulatoria ajena— y `cumplimiento_propio`
-// la restringe a su dueño. La vista devuelve solo tres booleanos por
-// servicio, que es lo único que necesita un badge.
+// Qué documentación tiene cada transportista NO se lee aquí desde el
+// 2026-09-22: vive en data/expediente.js, contra la vista
+// `expediente_resumen` (politicas.sql §8.2.1).
 //
-// Antes esto leía `transporte_documentacion`, una tabla en la que no
-// escribe nadie: el formulario de transporte responsable guarda en
-// cumplimiento_transporte. Los badges del comprador salían siempre en
-// "Sin documentación" por mucho que el transportista subiera sus
-// papeles. Esa tabla queda sellada en politicas.sql §9.
-
-export const TIPOS_DOCUMENTO = [
-  ["Permisos", "tiene_permisos"],
-  ["Certificaciones", "tiene_certificaciones"],
-  ["Seguros", "tiene_seguros"],
-];
-
-export async function listarCumplimientoDeServicios(idsServicios) {
-  if (!idsServicios?.length) return [];
-
-  const { data, error } = await supabaseClient
-    .from("transporte_cumplimiento_resumen")
-    .select("servicio_id, tiene_permisos, tiene_certificaciones, tiene_seguros")
-    .in("servicio_id", idsServicios);
-
-  if (error) throw error;
-  return data ?? [];
-}
-
-// Devuelve { [servicioId]: { tiene_permisos, ... } }.
-export function agruparCumplimiento(filas) {
-  const mapa = {};
-  filas.forEach((fila) => {
-    mapa[fila.servicio_id] = fila;
-  });
-  return mapa;
-}
-
-// Resume una fila de la vista para pintarla.
+// El motivo importa. Esto leía `cumplimiento_transporte`, que llenaba
+// la pantalla de "transporte responsable", mientras el transportista
+// subía sus permisos al expediente: dos mitades hablando con tablas
+// distintas, y quien tuviera sus papeles al día podía seguir saliendo
+// "sin documentación" ante el comprador. Es el defecto que ya costó un
+// arreglo en septiembre, repetido por otra vía.
 //
-// `null` significa "este servicio no tiene ninguna fila": distinto de
-// tenerla con los tres campos en false, que no debería ocurrir pero se
-// trata igual. Un servicio sin documentación NO es un servicio con
-// documentación incompleta, y el badge lo dice distinto.
-export function resumirCumplimiento(fila) {
-  const presentes = TIPOS_DOCUMENTO.map(([, clave]) => Boolean(fila?.[clave]));
-
-  return {
-    presentes,
-    detalle: TIPOS_DOCUMENTO.map(
-      ([etiqueta], i) => `${etiqueta} ${presentes[i] ? "✓" : "✗"}`
-    ).join(" · "),
-    completo: presentes.every(Boolean),
-    alguno: presentes.some(Boolean),
-  };
-}
+// Y el badge pasa a ser POR EMPRESA: la autorización de transporte es
+// de quien la tramitó, no de cada anuncio que publique.

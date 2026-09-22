@@ -355,6 +355,19 @@ grant select on public.transporte_cumplimiento_resumen to anon, authenticated;
 `security_invoker = false` es el mecanismo, no un descuido: la vista corre con
 los permisos de su dueño y por eso atraviesa la RLS de la tabla base.
 
+**Caso 3 — el expediente del transportista** (2026-09-22). Misma necesidad, tercera
+vez: el comprador tiene que saber si un transportista está en regla antes de
+contratarlo, y `expediente_propio` restringe la tabla a su dueño. Misma solución:
+`expediente_resumen` (§8.2.1 de `politicas.sql`) devuelve el id de la empresa y
+**tres booleanos**, nada más.
+
+Sustituye a `transporte_cumplimiento_resumen`, que resumía la tabla de una
+pantalla que ya no existe. El badge pasa a ser **por empresa y no por servicio**:
+la autorización de transporte es de quien la tramitó, no de cada anuncio.
+
+> La vista vieja se conserva por ahora —su tabla tampoco se tocó—, pero **ya no
+> la lee nadie**. Al decidir qué hacer con esos datos, se van las dos juntas.
+
 **Consecuencia:** es la única pieza del esquema sin política que la respalde, así
 que su seguridad vive entera en la lista de columnas del `select`. Las pruebas 17
 y 18 de §5 la acotan por los dos lados — que no devuelva las rutas, y que el

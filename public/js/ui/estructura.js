@@ -79,7 +79,6 @@ export const HEADER = `
             <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
             <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
             <a href="autorizaciones.html" data-role="logistica">Mi autorización de transporte</a>
-            <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
 
             <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
             <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>

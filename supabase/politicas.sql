@@ -979,6 +979,40 @@ alter table public.expediente_documentos
 
 
 -- ==============================================================
+-- 8.2.1 Quién tiene sus papeles, sin enseñar cuáles (2026-09-22)
+-- ==============================================================
+-- Tercera aplicación de C7. El comprador necesita saber si un
+-- transportista está en regla antes de contratarlo, pero
+-- `expediente_propio` restringe la tabla a su dueño —y debe seguir así:
+-- son permisos y pólizas ajenos—.
+--
+-- La vista devuelve BOOLEANOS y el id de la empresa. Nada más. Su
+-- seguridad vive entera en esta lista de columnas, igual que en §8.1:
+-- añadir aquí `archivo_ruta` o `numero_oficio` sería repartir
+-- documentación regulatoria a cualquiera con sesión.
+--
+-- Va por EMPRESA y no por servicio: la autorización de transporte es de
+-- la empresa, no de cada anuncio que publique. Sustituye a
+-- `transporte_cumplimiento_resumen` (§8.1), que leía la tabla de la
+-- pantalla vieja de transporte responsable.
+
+create or replace view public.expediente_resumen
+with (security_invoker = false) as
+select e.user_id,
+       bool_or(e.tipo_documento = 'autorizacion_transporte'
+               and e.archivo_ruta is not null) as tiene_autorizacion,
+       bool_or(e.tipo_documento = 'vehiculos'
+               and e.notas is not null)        as tiene_vehiculos,
+       bool_or(e.tipo_documento = 'poliza_seguro'
+               and e.archivo_ruta is not null) as tiene_seguro
+from public.expediente_documentos e
+group by e.user_id;
+
+revoke all on public.expediente_resumen from public;
+grant select on public.expediente_resumen to anon, authenticated;
+
+
+-- ==============================================================
 -- 8.3 Estado de la cuenta y envío a revisión
 -- ==============================================================
 -- El estado decide qué puede hacer una empresa

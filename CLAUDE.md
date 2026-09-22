@@ -178,7 +178,7 @@ de Vercel; `.env.local` es solo para `vercel dev` si algún día se instala.
 |---|---|---|
 | `proveedor` | Generador de residuos | `publicar-residuos`, `mis-residuos`, `manifiesto` |
 | `comprador` | Comprador industrial | `comprador-explorar-residuos`, `comprador-mis-intereses`, `comprador-servicios-transporte` (+ las dos de detalle) |
-| `logistica` | Transportista | `publicar-servicio-transporte`, `mis-servicios-transporte`, `transporte-responsable` |
+| `logistica` | Transportista | `publicar-servicio-transporte`, `mis-servicios-transporte`, `autorizaciones` |
 
 **El identificador y la etiqueta son cosas distintas, y a propósito** (decisión
 D-4 de `docs/plan-de-trabajo.md`, 2026-09-22). El vocabulario del documento
@@ -276,7 +276,8 @@ Columna de propiedad: `user_id` en todas, salvo `profiles`, donde es `id`.
 
 | Vista | Expone | Para qué |
 |---|---|---|
-| `transporte_cumplimiento_resumen` (§8.1) | `servicio_id` + 3 booleanos | Que el comprador vea si un transportista tiene papeles, sin acceder a las rutas de los documentos |
+| `expediente_resumen` (§8.2.1) | `user_id` + 3 booleanos | Que el comprador vea si un transportista tiene papeles, sin acceder a los documentos. **Por empresa**, no por servicio: la autorización es de quien la tramitó |
+| `transporte_cumplimiento_resumen` (§8.1) | `servicio_id` + 3 booleanos | La anterior. Ya no la lee nadie desde el 2026-09-22; se conserva mientras se conserven sus datos |
 | `empresas_publicas` (§7.2) | `id` + `company_name` | Poner nombre a una conversación, sin abrir `profiles` |
 
 Las dos **atraviesan RLS a propósito** (`security_invoker = false`): corren con
@@ -326,17 +327,22 @@ public/js/
   ui/auth-modal.js       modal de login/registro (se inyecta donde falte)
   ui/residuo-card.js     tarjeta de residuo compartida
   ui/detalle.js          bloques de las páginas de detalle
-  ui/documentos.js       enlaces a documentos ya firmados
+  ui/expediente-pantalla.js  las dos pantallas del expediente
   ui/conversacion.js     hilos de mensajes y caja de redacción
   data/<tabla>.js        todas las queries de esa tabla
   pages/<pagina>.js      lo específico de cada página
 ```
 
-`ui/conversacion.js` y `ui/documentos.js` no importan `data` —la capa `ui` no
-consulta— pero sí orquestan un ciclo completo: `montarConversacion()` y
-`montarBandeja()` reciben `cargar` y `enviar` **como funciones**. Así el ciclo
-pintar → enviar → repintar se escribe una vez para las cuatro pantallas que lo
+`ui/conversacion.js` y `ui/expediente-pantalla.js` no importan `data` —la capa
+`ui` no consulta— pero sí orquestan un ciclo completo: `montarConversacion()` y
+`montarExpediente()` reciben las consultas **como funciones**. Así el ciclo
+pintar → guardar → repintar se escribe una vez para todas las pantallas que lo
 usan, sin que `ui` sepa qué tabla hay detrás.
+
+Es la salida a un problema que no tiene otra: `pages/` no puede compartir código
+—ningún módulo puede importar de ahí, y cada archivo necesita su HTML—, así que
+cuando dos páginas hacen lo mismo, lo común sube a `ui` con los datos entrando
+por parámetros. Lo aprendió el expediente al partirse en dos (2026-09-22).
 
 Supabase se importa desde esm.sh con **versión exacta** (`@2.116.0`). Con `@2`
 flotante, un cambio upstream rompe el sitio sin que nadie toque el repo. Subirla

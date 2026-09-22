@@ -14,13 +14,16 @@
 // tocarlo (politicas.sql §8.2).
 // ==============================================================
 
-import { test, describe } from "node:test";
+import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+
+import { reiniciar, registro, ultimaConsulta } from "./dobles/supabase.js";
 
 import {
   documentosDeRol, bloquesDeRol, faltantes, puedeEnviarse, expedienteCompleto,
   materialesAmparados, amparaMaterial, admiteVarios, filasDe,
   bloquesDePantalla, documentosDePantalla, faltantesPorPantalla,
+  listarResumenDeEmpresas, agruparResumen, resumirTransporte,
 } from "../public/js/data/expediente.js";
 import { textoPendientes } from "../public/js/ui/expediente-pantalla.js";
 
@@ -262,6 +265,83 @@ describe("las dos pantallas del expediente", () => {
     ];
 
     assert.deepEqual(faltantes("proveedor", guardados), []);
+  });
+});
+
+// ==============================================================
+// La insignia de documentación del transportista
+// ==============================================================
+// Regresión de un desajuste que ya costó un arreglo en septiembre y
+// volvió por otra vía: el badge del comprador leía la tabla de la
+// pantalla de "transporte responsable" mientras el transportista subía
+// sus permisos al expediente. Dos mitades hablando con tablas
+// distintas, y quien tenía sus papeles al día saliendo "sin
+// documentación" ante quien iba a contratarlo.
+//
+// Por eso la prueba fija la FUENTE además del resultado.
+describe("de dónde sale la documentación de transporte", () => {
+  beforeEach(reiniciar);
+
+  test("se lee la vista de resumen del expediente, no una tabla", async () => {
+    await listarResumenDeEmpresas(["u-1"]);
+    assert.equal(ultimaConsulta().tabla, "expediente_resumen");
+  });
+
+  // Las tablas de la pantalla vieja quedan con sus datos, pero nadie
+  // las consulta ya: si alguna vuelve a aparecer aquí, el badge estaría
+  // mirando otra vez donde no se escribe.
+  test("no se consulta ninguna de las tablas viejas", async () => {
+    await listarResumenDeEmpresas(["u-1"]);
+
+    const tablas = registro.consultas.map((c) => c.tabla);
+    ["cumplimiento_transporte", "transporte_documentacion", "transporte_cumplimiento_resumen"]
+      .forEach((tabla) => assert.equal(tablas.includes(tabla), false, tabla));
+  });
+
+  test("sin empresas no se consulta nada", async () => {
+    await listarResumenDeEmpresas([]);
+    assert.equal(registro.consultas.length, 0);
+  });
+
+  test("agrupa cada fila por su empresa", () => {
+    const mapa = agruparResumen([
+      { user_id: "u-1", tiene_autorizacion: true },
+      { user_id: "u-2", tiene_seguro: true },
+    ]);
+
+    assert.equal(mapa["u-1"].tiene_autorizacion, true);
+    assert.equal(mapa["u-2"].tiene_seguro, true);
+    assert.equal(mapa["u-3"], undefined);
+  });
+});
+
+describe("resumirTransporte", () => {
+  const COMPLETO = { tiene_autorizacion: true, tiene_vehiculos: true, tiene_seguro: true };
+
+  test("con los tres está completo", () => {
+    const r = resumirTransporte(COMPLETO);
+
+    assert.equal(r.completo, true);
+    assert.equal(r.alguno, true);
+    assert.equal(r.detalle, "Autorización ✓ · Vehículos ✓ · Seguro ✓");
+  });
+
+  test("con algunos no está completo, pero tiene alguno", () => {
+    const r = resumirTransporte({ ...COMPLETO, tiene_seguro: false });
+
+    assert.equal(r.completo, false);
+    assert.equal(r.alguno, true);
+    assert.match(r.detalle, /Seguro ✗/);
+  });
+
+  // Distingue las dos situaciones que antes se confundían: sin
+  // expediente no es lo mismo que con el expediente a medias.
+  test("sin fila no hay documentación: ni completa ni parcial", () => {
+    const r = resumirTransporte(undefined);
+
+    assert.equal(r.completo, false);
+    assert.equal(r.alguno, false);
+    assert.equal(r.detalle, "Autorización ✗ · Vehículos ✗ · Seguro ✗");
   });
 });
 

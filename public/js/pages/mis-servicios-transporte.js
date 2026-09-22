@@ -8,12 +8,12 @@ import {
   listarMisServicios,
   cambiarEstadoServicio,
   eliminarServicio,
-  listarCumplimientoDeServicios,
-  agruparCumplimiento,
-  resumirCumplimiento,
   ESTADO_ACTIVO,
   ESTADO_INACTIVO,
 } from "../data/transporte.js";
+import {
+  listarResumenDeEmpresas, agruparResumen, resumirTransporte,
+} from "../data/expediente.js";
 import {
   listarMensajesDePublicacion,
   enviarMensaje,
@@ -67,11 +67,11 @@ function crearTarjeta(servicio, cumplimiento, usuarioId) {
   titulo.className = "waste-type";
   titulo.textContent = servicio.tipo_transporte ?? "Servicio sin nombre";
 
-  // Antes bastaba con que existiera una fila de cumplimiento para decir
-  // "Docs OK", aunque no llevara un solo archivo: el formulario permite
-  // guardar solo las prácticas de manejo. Ahora se mira qué hay de
-  // verdad, y con el mismo criterio que ve el comprador.
-  const { detalle, completo, alguno } = resumirCumplimiento(cumplimiento);
+  // El mismo criterio que ve el comprador, y sobre el mismo dato: el
+  // expediente. Antes esto leía una tabla que llenaba otra pantalla, y
+  // un transportista con su expediente al día seguía saliendo "sin
+  // docs" para quien lo iba a contratar.
+  const { detalle, completo, alguno } = resumirTransporte(cumplimiento);
 
   const insignia = document.createElement("span");
   insignia.className = `badge ${completo ? "badge-success" : "badge-warning"}`;
@@ -195,23 +195,21 @@ if (contenedor) {
         mostrarEstado("");
       } else {
         // Misma fuente que ve el comprador (la vista de politicas.sql
-        // §8.1), para que las dos páginas no puedan contradecirse.
-        let cumplimientos = {};
+        // §8.2.1), para que las dos páginas no puedan contradecirse.
+        // Es una sola fila: la autorización es de la empresa, así que
+        // todos sus servicios muestran lo mismo.
+        let resumen = null;
         let fallo = false;
         try {
-          cumplimientos = agruparCumplimiento(
-            await listarCumplimientoDeServicios(servicios.map((s) => s.id))
-          );
+          resumen = agruparResumen(await listarResumenDeEmpresas([usuario.id]))[usuario.id];
         } catch (err) {
-          console.error("Error obteniendo cumplimientos:", err);
+          console.error("Error obteniendo el resumen del expediente:", err);
           fallo = true;
         }
 
         contenedor.innerHTML = "";
         servicios.forEach((servicio) => {
-          contenedor.appendChild(
-            crearTarjeta(servicio, cumplimientos[servicio.id], usuario.id)
-          );
+          contenedor.appendChild(crearTarjeta(servicio, resumen, usuario.id));
         });
 
         // Sin esto, un fallo al consultar pinta "Sin docs" en servicios

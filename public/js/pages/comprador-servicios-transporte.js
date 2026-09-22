@@ -3,12 +3,10 @@
 // ==============================================================
 
 import { montarNavbar } from "../ui/navbar.js";
+import { buscarActivos } from "../data/transporte.js";
 import {
-  buscarActivos,
-  listarCumplimientoDeServicios,
-  agruparCumplimiento,
-  resumirCumplimiento,
-} from "../data/transporte.js";
+  listarResumenDeEmpresas, agruparResumen, resumirTransporte,
+} from "../data/expediente.js";
 import { nombresDeEmpresas } from "../data/mensajes.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { crearAvisoEstado, bloquearSiNoOpera } from "../ui/estado-cuenta.js";
@@ -105,7 +103,9 @@ function crearTarjeta(servicio, empresa) {
 
   const insigniaDocs = document.createElement("span");
   insigniaDocs.className = "badge-doc-transporte";
-  insigniaDocs.dataset.servicioId = servicio.id;
+  // Por EMPRESA, no por servicio: la autorización de transporte es de
+  // quien la tramitó, no de cada anuncio que publique.
+  insigniaDocs.dataset.empresaId = servicio.user_id;
   insigniaDocs.textContent = "Cargando documentación...";
   tarjeta.appendChild(insigniaDocs);
 
@@ -141,14 +141,14 @@ async function pintarBadgesDocumentacion() {
   const insignias = document.querySelectorAll(".badge-doc-transporte");
   if (!insignias.length) return;
 
-  const ids = Array.from(insignias).map((b) => b.dataset.servicioId);
+  const ids = Array.from(insignias).map((b) => b.dataset.empresaId);
 
   try {
-    const mapa = agruparCumplimiento(await listarCumplimientoDeServicios(ids));
+    const mapa = agruparResumen(await listarResumenDeEmpresas(ids));
 
     insignias.forEach((insignia) => {
-      const fila = mapa[insignia.dataset.servicioId];
-      const { detalle, completo, alguno } = resumirCumplimiento(fila);
+      const fila = mapa[insignia.dataset.empresaId];
+      const { detalle, completo, alguno } = resumirTransporte(fila);
 
       insignia.classList.remove("ok", "parcial", "sin");
 

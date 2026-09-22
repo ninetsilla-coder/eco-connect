@@ -443,6 +443,67 @@ export async function guardarDocumento(usuarioId, doc, valores, archivo, filaId 
   return data;
 }
 
+// --------------------------------------------------------------
+// Qué transportistas tienen sus papeles, sin enseñar cuáles
+// --------------------------------------------------------------
+// El comprador necesita saber si un transportista está en regla antes
+// de contratarlo, pero `expediente_propio` restringe la tabla a su
+// dueño —y debe seguir así: son permisos y pólizas ajenos—. La vista
+// `expediente_resumen` devuelve solo booleanos por empresa, que es lo
+// único que necesita un badge. Es el patrón C7 del CONTRATO-RLS.
+//
+// Va por EMPRESA y no por servicio: la autorización de transporte es de
+// la empresa, no de cada anuncio que publique. Antes esto leía
+// `cumplimiento_transporte`, que se llenaba en una pantalla aparte; un
+// transportista que completara su expediente seguía saliendo "sin
+// documentación" — la misma trampa de las dos mitades hablando con
+// tablas distintas que ya costó un defecto en septiembre.
+
+export const DOCUMENTOS_TRANSPORTE = [
+  ["Autorización", "tiene_autorizacion"],
+  ["Vehículos", "tiene_vehiculos"],
+  ["Seguro", "tiene_seguro"],
+];
+
+export async function listarResumenDeEmpresas(usuarioIds) {
+  const ids = [...new Set((usuarioIds ?? []).filter(Boolean))];
+  if (!ids.length) return [];
+
+  const { data, error } = await supabaseClient
+    .from("expediente_resumen")
+    .select("user_id, tiene_autorizacion, tiene_vehiculos, tiene_seguro")
+    .in("user_id", ids);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Devuelve { [userId]: fila }.
+export function agruparResumen(filas) {
+  const mapa = {};
+  (filas ?? []).forEach((fila) => { mapa[fila.user_id] = fila; });
+  return mapa;
+}
+
+// Resume una fila de la vista para pintarla.
+//
+// Sin fila significa "esta empresa no ha subido nada", distinto de
+// tenerla con todo en false. Un transportista sin expediente NO es un
+// transportista con documentación incompleta, y el badge lo dice
+// distinto.
+export function resumirTransporte(fila) {
+  const presentes = DOCUMENTOS_TRANSPORTE.map(([, clave]) => Boolean(fila?.[clave]));
+
+  return {
+    presentes,
+    detalle: DOCUMENTOS_TRANSPORTE.map(
+      ([etiqueta], i) => `${etiqueta} ${presentes[i] ? "✓" : "✗"}`
+    ).join(" · "),
+    completo: presentes.every(Boolean),
+    alguno: presentes.some(Boolean),
+  };
+}
+
 export function urlDeDocumento(ruta) {
   return ruta ? urlFirmada(BUCKET, ruta) : Promise.resolve(null);
 }
