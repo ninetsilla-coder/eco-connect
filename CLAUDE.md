@@ -484,7 +484,7 @@ Pendientes:
      se comprobó 2.116.0: el cliente se construye, expone `from`, `auth` y
      `storage`, y una consulta real al catálogo devolvió filas.
 
-- **El contrato RLS está cerrado** (2026-09-21: 20 pasan, 0 fallan, 0 saltadas,
+- **El contrato RLS está cerrado** (2026-09-21: 25 pasan, 0 fallan, 0 saltadas,
   verificado contra el proyecto real).
   No es una tarea pendiente, sino la advertencia que la sustituye: correr
   `npm run verificar:politicas` **cada vez que alguien toque la configuración de

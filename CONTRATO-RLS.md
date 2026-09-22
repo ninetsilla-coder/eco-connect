@@ -512,19 +512,22 @@ y estar mal escrita.
 | C6 — Storage: políticas | 🔴 Rota → corregida 2026-09-17 | ✅ 2026-09-17, prueba 8 |
 | C6 — Storage: buckets privados (flag `public`) | ✅ 2026-09-21 | ✅ §12.1 no devuelve `BUCKET QUE DEBERIA SER PRIVADO` |
 | C7 — Vistas en vez de políticas permisivas | ✅ 2026-09-21 | ✅ 2026-09-21, pruebas 16, 17 y 18 |
-| C8 — Mensajería entre empresas | ✅ 2026-09-21 | ⚠️ sin pruebas en el verificador — ver abajo |
+| C8 — Mensajería entre empresas | ✅ 2026-09-21 | ✅ 2026-09-21, pruebas 19 a 23 |
 
-> **La única cláusula sin automatizar es C8.** `mensajes` se validó a mano el
-> 2026-09-21 —dos empresas conversando, cada hilo separado del resto— pero el
-> verificador no intenta todavía lo que *no* debe poder hacerse: leer un hilo
-> ajeno, firmar un mensaje con el uid de otro, o reescribir el `cuerpo` de uno
-> recibido aprovechando `mensajes_marca`. Ese último es el que más importa:
-> depende de un `grant` de columna, y un `grant` mal puesto no se ve leyendo el
-> catálogo. Hasta que estén, C8 está aplicada pero no demostrada.
+> **La 22 y la 23 se validan mutuamente, y por eso van juntas.** `mensajes_marca`
+> deja al destinatario hacer `UPDATE`; lo único que le impide reescribir el
+> `cuerpo` de lo que recibió es un `grant` de columna, y un `grant` mal puesto no
+> se ve leyendo el catálogo — la misma clase de agujero que costó los 12 del
+> 2026-09-17.
+>
+> La 22 sola no bastaría: si el `UPDATE` estuviera roto para todo el mundo,
+> también afectaría cero filas y pasaría por segura. La 23 marca `leido_at` sobre
+> **la misma fila** y confirma que el `UPDATE` funciona. Cero filas en la 22 con
+> una fila en la 23 solo puede significar una cosa: la columna está vetada.
 
-## ✅ Estado al 2026-09-21: 20 pruebas pasan, 0 fallan, 0 saltadas
+## ✅ Estado al 2026-09-21: 25 pruebas pasan, 0 fallan, 0 saltadas
 
-Verificado contra el proyecto real tras aplicar `politicas.sql`. Las tres
+Verificado contra el proyecto real tras aplicar `politicas.sql`. Las ocho
 comprobaciones añadidas ese día:
 
 | # | Qué fija |
@@ -532,6 +535,15 @@ comprobaciones añadidas ese día:
 | 16 | Un usuario no lee el perfil de otra empresa (cierra la fuga de correos de C7) |
 | 17 | La vista de cumplimiento no devuelve `permisos_urls`, `certificaciones_urls`, `seguros_urls` ni `user_id` |
 | 18 | Un comprador **sí** puede leer el resumen — sin esto, revocar el grant dejaría la 17 en verde y los badges rotos |
+| 19 | Sin sesión no se lee ningún mensaje |
+| 20 | Un usuario solo ve los hilos en los que participa |
+| 21 | No se puede firmar un mensaje con el `uid` de otro |
+| 22 | El destinatario no puede reescribir el `cuerpo` de lo que recibió |
+| 23 | El destinatario **sí** puede marcarlo como leído — el par de la 22 |
+
+La 21 y la 22 reutilizan un hilo de prueba que se busca por su cuerpo y solo se
+crea si no existe: C8 no tiene política de `DELETE`, así que un mensaje nuevo por
+ejecución se acumularía para siempre.
 
 La 8 también se endureció: comprobaba solo el código de estado, y Storage
 responde `400` tanto a una petición mal formada como a una denegada por RLS.

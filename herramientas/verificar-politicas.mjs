@@ -689,6 +689,169 @@ await comprobar("18. un comprador SÍ puede leer el resumen de cumplimiento", as
 });
 
 // ==============================================================
+// Mensajería (C8)
+// ==============================================================
+// `mensajes` es la única tabla donde dos empresas comparten datos, y la
+// más nueva. Se validó a mano el 2026-09-21 —dos empresas conversando—
+// pero eso demuestra que funciona, no que impida lo que debe impedir.
+//
+// La 21 es la que justifica esta tanda: `mensajes_marca` deja al
+// destinatario hacer UPDATE, y lo único que evita que reescriba el
+// CUERPO de un mensaje recibido es un grant de columna. Un grant mal
+// puesto NO se ve leyendo el catálogo — es la misma clase de agujero
+// que costó los 12 del 2026-09-17.
+
+// Hilo de prueba reutilizable: se busca por su cuerpo y solo se crea si
+// no existe. Sin política de DELETE (decisión de C8), un mensaje nuevo
+// por ejecución se acumularía para siempre.
+const CUERPO_PRUEBA = "[verificar-politicas] hilo de prueba, no responder";
+
+async function hiloDePrueba() {
+  const { cuerpo: previos } = await api(
+    `/rest/v1/mensajes?select=id,cuerpo,destinatario_id&cuerpo=eq.${encodeURIComponent(CUERPO_PRUEBA)}&destinatario_id=eq.${proveedor.id}&limit=1`,
+    { token: proveedor.token }
+  );
+  if (previos?.[0]) return previos[0];
+
+  // Hace falta un residuo del proveedor: `mensajes_envia` exige que una
+  // de las dos partes sea el dueño de la publicación.
+  const { cuerpo: suyos } = await api(
+    `/rest/v1/residuos_publicados?select=id&user_id=eq.${proveedor.id}&limit=1`,
+    { token: proveedor.token }
+  );
+  if (!suyos?.[0]) return null;
+
+  const { cuerpo: creado } = await api("/rest/v1/mensajes", {
+    method: "POST",
+    token: comprador.token,
+    headers: REPRESENTACION,
+    body: JSON.stringify({
+      residuo_id: suyos[0].id,
+      remitente_id: comprador.id,
+      destinatario_id: proveedor.id,
+      cuerpo: CUERPO_PRUEBA,
+    }),
+  });
+
+  return Array.isArray(creado) ? creado[0] : null;
+}
+
+await comprobar("19. sin sesión NO se lee ningún mensaje", async () => {
+  const { cuerpo } = await api("/rest/v1/mensajes?select=id,cuerpo&limit=5");
+  const filas = Array.isArray(cuerpo) ? cuerpo : [];
+  return {
+    ok: filas.length === 0,
+    detalle: filas.length ? `un anónimo LEE ${filas.length} mensaje(s); revisa mensajes_propios (§7.1)` : null,
+  };
+});
+
+await comprobar("20. un usuario solo ve los hilos en los que participa", async () => {
+  const { cuerpo } = await api(
+    "/rest/v1/mensajes?select=id,remitente_id,destinatario_id",
+    { token: proveedor.token }
+  );
+  const filas = Array.isArray(cuerpo) ? cuerpo : [];
+  const ajenos = filas.filter(
+    (m) => m.remitente_id !== proveedor.id && m.destinatario_id !== proveedor.id
+  );
+
+  return {
+    ok: ajenos.length === 0,
+    detalle: ajenos.length
+      ? `ve ${ajenos.length} mensaje(s) de conversaciones ajenas; revisa mensajes_propios (§7.1)`
+      : null,
+  };
+});
+
+await comprobar("21. NO se puede firmar un mensaje con el uid de otro", async () => {
+  const { cuerpo: suyos } = await api(
+    `/rest/v1/residuos_publicados?select=id&user_id=eq.${proveedor.id}&limit=1`,
+    { token: proveedor.token }
+  );
+  if (!suyos?.[0]) {
+    return { saltada: true, detalle: "el proveedor no tiene residuos con los que probar" };
+  }
+
+  // El comprador intenta hacer pasar el mensaje por enviado por el
+  // proveedor. `mensajes_envia` exige auth.uid() = remitente_id.
+  const { estado, cuerpo } = await api("/rest/v1/mensajes", {
+    method: "POST",
+    token: comprador.token,
+    headers: REPRESENTACION,
+    body: JSON.stringify({
+      residuo_id: suyos[0].id,
+      remitente_id: proveedor.id,
+      destinatario_id: comprador.id,
+      cuerpo: "[verificar-politicas] suplantacion, deberia fallar",
+    }),
+  });
+
+  if (estado < 400) {
+    const creado = Array.isArray(cuerpo) ? cuerpo[0] : null;
+    return {
+      ok: false,
+      detalle: `SUPLANTÓ al proveedor${creado ? ` (mensaje ${creado.id})` : ""}; revisa mensajes_envia (§7.1)`,
+    };
+  }
+  return { ok: true, detalle: null };
+});
+
+await comprobar("22. el destinatario NO puede reescribir el cuerpo de lo que recibió", async () => {
+  const mensaje = await hiloDePrueba();
+  if (!mensaje) {
+    return { saltada: true, detalle: "no se pudo preparar un mensaje dirigido al proveedor" };
+  }
+
+  // No basta con que falle: si fallara por no poder tocar la fila, la
+  // prueba 23 lo destaparía. Aquí lo que se exige es que la COLUMNA
+  // esté vetada por el grant.
+  const { cuerpo: afectadas } = await api(`/rest/v1/mensajes?id=eq.${mensaje.id}`, {
+    method: "PATCH",
+    token: proveedor.token,
+    headers: REPRESENTACION,
+    body: JSON.stringify({ cuerpo: "[verificar-politicas] CUERPO REESCRITO" }),
+  });
+
+  const cambiadas = Array.isArray(afectadas) ? afectadas.length : 0;
+  if (cambiadas > 0) {
+    // Deshacer: se acaba de alterar lo que otro escribió.
+    await api(`/rest/v1/mensajes?id=eq.${mensaje.id}`, {
+      method: "PATCH",
+      token: proveedor.token,
+      body: JSON.stringify({ cuerpo: CUERPO_PRUEBA }),
+    });
+    return {
+      ok: false,
+      detalle: "REESCRIBIÓ un mensaje ajeno; falta el grant de columna de §7.1",
+    };
+  }
+  return { ok: true, detalle: null };
+});
+
+await comprobar("23. el destinatario SÍ puede marcarlo como leído", async () => {
+  const mensaje = await hiloDePrueba();
+  if (!mensaje) {
+    return { saltada: true, detalle: "no se pudo preparar un mensaje dirigido al proveedor" };
+  }
+
+  const { cuerpo: afectadas } = await api(`/rest/v1/mensajes?id=eq.${mensaje.id}`, {
+    method: "PATCH",
+    token: proveedor.token,
+    headers: REPRESENTACION,
+    body: JSON.stringify({ leido_at: new Date().toISOString() }),
+  });
+
+  const cambiadas = Array.isArray(afectadas) ? afectadas.length : 0;
+  return {
+    ok: cambiadas === 1,
+    detalle:
+      cambiadas === 1
+        ? null
+        : "no pudo marcar como leído: el grant de §7.1 o mensajes_marca están de más restrictivos, y los no leídos no bajarían nunca",
+  };
+});
+
+// ==============================================================
 // Storage (C6)
 // ==============================================================
 // La primera versión dejaba esto como comprobación manual porque el
