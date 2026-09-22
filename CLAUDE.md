@@ -225,6 +225,29 @@ acabar con lo mismo. Lo fija `registro.test.js`.
 > `grant update` de `profiles`. Ver [C9](CONTRATO-RLS.md) — sin eso, una empresa
 > podría reescribir su RFC después de que el equipo lo cotejara con el padrón.
 
+### El material sale de un catálogo cerrado (2026-09-22)
+
+`data/materiales.js` tiene los diez materiales que se pueden publicar, sus
+municipios, unidades y listas de opciones. **Vive en el código, no en una tabla**
+(decisión D-8): son diez y cambian poco.
+
+No es una lista de conveniencia: es la **primera de las tres capas** que impiden
+publicar un residuo peligroso (documento maestro §04). Las otras dos son la lista
+explícita de los términos y condiciones y la declaración que marca el generador.
+Quitar el catálogo cerrado no es un cambio de formulario.
+
+Las **claves** del Catálogo de Residuos de Manejo Especial son provisionales
+(`PENDIENTE-SMA`). El manifiesto las necesita de verdad; hay que capturarlas antes
+de la tarea 10 del plan.
+
+`data/residuos.js` calcula el dinero: `COMISION` (3%), `totalesDeLote()` y
+`textoPrecio()`. Ahí está el único sitio donde se multiplica precio por cantidad.
+
+> ⚠️ `data/` no puede importar de `data/` (§4.1), así que la fila "como se lee"
+> —precio con comisión, cantidad legible, etiquetas— se arma en las **páginas**,
+> que son las únicas que ven las dos mitades. Por eso `vistaDeResiduo()` está
+> repetida en `comprador-explorar-residuos.js` y en `mis-residuos.js`.
+
 ### Tablas (9)
 
 `profiles`, `residuos_publicados`, `intereses`, `servicios_transporte`,

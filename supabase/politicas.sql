@@ -351,6 +351,48 @@ create unique index if not exists profiles_rfc_unico
 
 
 -- ==============================================================
+-- 1.5 Ficha técnica del residuo (2026-09-22)
+-- ==============================================================
+-- El formulario de publicar pasó de siete campos de texto libre a la
+-- ficha de docs/cambios-plataforma.md §4. Ocho columnas nuevas:
+--
+--   material_clave            clave del Catálogo de Residuos de Manejo
+--                             Especial. HOY ES PROVISIONAL: las de
+--                             verdad están sin capturar (CLAUDE.md §0.1)
+--   cantidad_lote / unidad    el número y su unidad, separados; antes
+--                             era una sola cadena ("500 kg por mes")
+--   precio                    por unidad. Sin él no hay comisión que
+--                             calcular, y era obligatorio en el §4
+--   nivel_procesamiento       sin procesar / separado / compactado /
+--                             triturado
+--   condicion_detalle         qué impurezas trae, si las trae
+--   humedad                   solo cartón y plásticos
+--   declaracion_no_peligroso  la casilla que firma el generador
+--
+-- `tipo` se queda y pasa a guardar el NOMBRE del material del catálogo.
+-- No se renombra: de esa columna cuelgan la búsqueda del comprador y
+-- todas las publicaciones anteriores a esta fecha.
+--
+-- Ninguna política cambia. `residuos_catalogo` sigue filtrando por
+-- estado y `residuos_inserta` sigue exigiendo rol de proveedor: la
+-- ficha añade columnas, no una forma nueva de escribir.
+--
+-- ⚠️ La declaración NO es un control de seguridad. Es una afirmación
+-- del generador, con valor legal (documento maestro §04), no una
+-- comprobación: nadie verifica que el material sea lo que dice.
+
+alter table public.residuos_publicados
+  add column if not exists material_clave           text,
+  add column if not exists cantidad_lote            numeric,
+  add column if not exists unidad                   text,
+  add column if not exists precio                   numeric,
+  add column if not exists nivel_procesamiento      text,
+  add column if not exists condicion_detalle        text,
+  add column if not exists humedad                  numeric,
+  add column if not exists declaracion_no_peligroso boolean default false;
+
+
+-- ==============================================================
 -- 2. Alta de cuenta: el trigger es la única vía para company_type
 -- ==============================================================
 -- Corrige la carrera de script.js:404. El cliente ya envía los datos

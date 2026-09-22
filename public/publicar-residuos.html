@@ -133,6 +133,45 @@
       resize: vertical;
     }
 
+    /* Cantidad y unidad son un solo dato partido en dos controles. */
+    .campo-compuesto {
+      display: flex;
+      gap: 8px;
+    }
+
+    .campo-compuesto input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .campo-compuesto select {
+      flex: 0 0 auto;
+      width: auto;
+    }
+
+    .form-declaracion {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      background: #f9fafb;
+    }
+
+    .declaracion-opcion {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 0.88rem;
+      color: #374151;
+      cursor: pointer;
+    }
+
+    .declaracion-opcion input {
+      width: auto;
+      flex: 0 0 auto;
+      margin-top: 3px;
+    }
+
     .form-actions {
       margin-top: 20px;
       display: flex;
@@ -217,76 +256,91 @@
         <form id="form-publicar-residuo">
           <div class="form-grid">
             <div class="form-field">
-              <label for="tipo">Tipo de residuo</label>
-              <input
-                type="text"
-                id="tipo"
-                name="tipo"
-                placeholder="Ej. PET transparente, cartón corrugado, aluminio"
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="cantidad">Cantidad disponible</label>
-              <input
-                type="text"
-                id="cantidad"
-                name="cantidad"
-                placeholder="Ej. 500 kg por mes, 3 toneladas por lote"
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="ubicacion">Ubicación</label>
-              <input
-                type="text"
-                id="ubicacion"
-                name="ubicacion"
-                placeholder="Ciudad, estado, planta o almacén"
-              />
-            </div>
-
-            <div class="form-field">
-              <label for="frecuencia">Frecuencia</label>
-              <select id="frecuencia" name="frecuencia">
-                <option value="">Selecciona una opción</option>
-                <option value="unica">Única vez</option>
-                <option value="semanal">Semanal</option>
-                <option value="mensual">Mensual</option>
-                <option value="constante">Flujo constante</option>
+              <label for="material">Material *</label>
+              <!-- Las opciones las pone js/data/materiales.js: el
+                   catálogo vive en un solo sitio. -->
+              <select id="material" name="material" required>
+                <option value="">Selecciona un material</option>
               </select>
+              <small class="form-hint">Solo residuos comunes no peligrosos. Si tu material no está, no se puede publicar aquí.</small>
             </div>
 
             <div class="form-field">
-              <label for="estado-residuo">Estado del residuo</label>
-              <select id="estado-residuo" name="estado-residuo">
-                <option value="">Selecciona una opción</option>
-                <option value="seco">Seco</option>
-                <option value="humedo">Húmedo</option>
-                <option value="mezclado">Mezclado</option>
-                <option value="limpio">Limpio</option>
-                <option value="con-impurezas">Con impurezas</option>
-              </select>
-            </div>
-
-            <div class="form-field">
-              <label for="descripcion">Descripción adicional</label>
+              <label for="descripcion">Descripción *</label>
               <textarea
                 id="descripcion"
                 name="descripcion"
-                placeholder="Detalle composición, contaminantes, restricciones de manejo, etc."
+                required
+                placeholder="Ej. rebaba de maquinado de acero 1018"
               ></textarea>
             </div>
 
             <div class="form-field">
-              <label for="fotos">Fotos del residuo</label>
+              <label for="cantidad-lote">Cantidad del lote *</label>
+              <div class="campo-compuesto">
+                <input type="number" id="cantidad-lote" name="cantidad-lote" min="0" step="any" required placeholder="Ej. 10" />
+                <select id="unidad" name="unidad" required></select>
+              </div>
+              <small class="form-hint">El lote se vende completo.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="precio">Precio por unidad *</label>
+              <input type="number" id="precio" name="precio" min="0" step="any" required placeholder="Ej. 4000" />
+              <small class="form-hint" id="precio-resumen">Pesos por kilogramo o por tonelada, según la unidad que elegiste.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="frecuencia">Periodicidad *</label>
+              <select id="frecuencia" name="frecuencia" required></select>
+            </div>
+
+            <div class="form-field">
+              <label for="nivel-procesamiento">Nivel de procesamiento *</label>
+              <select id="nivel-procesamiento" name="nivel-procesamiento" required></select>
+            </div>
+
+            <div class="form-field">
+              <label for="estado-residuo">Condición *</label>
+              <select id="estado-residuo" name="estado-residuo" required></select>
+            </div>
+
+            <div class="form-field" id="campo-condicion-detalle" style="display: none;">
+              <label for="condicion-detalle">¿Qué impurezas trae? *</label>
+              <input type="text" id="condicion-detalle" name="condicion-detalle" placeholder="Ej. restos de aceite de corte, etiquetas" />
+            </div>
+
+            <div class="form-field" id="campo-humedad" style="display: none;">
+              <label for="humedad">Humedad aproximada (%)</label>
+              <input type="number" id="humedad" name="humedad" min="0" max="100" step="any" placeholder="Ej. 8" />
+            </div>
+
+            <div class="form-field">
+              <label for="ubicacion">Ubicación de la planta *</label>
+              <select id="ubicacion" name="ubicacion" required></select>
+              <small class="form-hint">En la fase 1 EcoConnect opera solo en Torreón.</small>
+            </div>
+
+            <div class="form-field">
+              <label for="fotos">Fotos del residuo * (mínimo 2)</label>
               <input
                 type="file"
                 id="fotos"
                 name="fotos"
+                accept="image/*"
                 multiple
+                required
               />
+              <small class="form-hint">Elígelas todas de una vez: mantén <strong>Ctrl</strong> presionado mientras haces clic en cada foto. Si vuelves a abrir el cuadro, la selección anterior se reemplaza.</small>
+              <small class="form-hint" id="fotos-resumen"></small>
             </div>
+          </div>
+
+          <div class="form-declaracion">
+            <label class="declaracion-opcion">
+              <input type="checkbox" id="declaracion" name="declaracion" required />
+              Declaro que este material no es un residuo peligroso y no está contaminado con sustancias peligrosas. *
+            </label>
           </div>
 
           <div class="form-actions">

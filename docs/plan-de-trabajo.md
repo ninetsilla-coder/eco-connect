@@ -114,18 +114,32 @@ Dos cuidados que vienen del contrato de seguridad:
 - Guardar los campos nuevos desde el perfil **no va a funcionar** hasta ampliar el permiso
   de escritura de `profiles`, y falla en silencio (ver C-3).
 
-### 3. [ ] Ficha técnica con catálogo cerrado y declaración (§4)
+### 3. [x] Ficha técnica con catálogo cerrado y declaración (§4) — hecho el 2026-09-22
 
 | | |
 |---|---|
-| **Archivos** | `public/publicar-residuos.html` (formulario de 217-289), `public/js/pages/publicar-residuos.js:88-100`, `public/js/data/residuos.js:80-104`, nuevo `public/js/data/materiales.js` (los 10 materiales, D-8). Para mostrar precio y comisión (D-7): `public/js/ui/residuo-card.js`, `public/js/pages/comprador-explorar-residuos.js:20-25`, `public/js/pages/comprador-detalle-residuo.js` |
-| **Supabase** | **Sí.** Columnas nuevas en `residuos_publicados`: material y su clave, cantidad numérica, unidad, precio, periodicidad, nivel de procesamiento, condición, humedad y declaración. Las políticas actuales siguen valiendo sin cambios |
+| **Archivos tocados** | Nuevos: `public/js/data/materiales.js`, `tests/ficha-tecnica.test.js`. Modificados: `public/publicar-residuos.html`, `public/js/pages/publicar-residuos.js`, `public/js/data/residuos.js`, y las tres pantallas que lo muestran (`comprador-explorar-residuos`, `comprador-detalle-residuo`, `mis-residuos`) |
+| **Supabase** | **Sí** (`politicas.sql` §1.5): ocho columnas nuevas en `residuos_publicados`. Ninguna política cambia |
 | **Tamaño** | Mediano |
-| **Real o simulado** | Real, salvo las claves oficiales del catálogo: texto provisional (§0.1) |
+| **Real o simulado** | Real, salvo las claves del catálogo: provisionales (§0.1) |
 
-Hoy el material es texto libre (`publicar-residuos.html:220`) y **no existe ningún campo de
-precio**, así que el "$40,000 + comisión 3%" del documento no se puede calcular con lo que
-hay guardado.
+El material sale de una lista cerrada de diez; lo que no está en ella no se puede publicar,
+que es la primera de las tres capas contra los residuos peligrosos (maestro §04). El precio
+es obligatorio y el comprador ve el total con la comisión del 3% (D-7).
+
+**Decisiones de compatibilidad, para que no sorprendan:**
+
+- `tipo` se conserva y pasa a guardar el **nombre del material del catálogo**. De esa columna
+  cuelgan la búsqueda del comprador y las publicaciones anteriores.
+- `cantidad` (texto libre) se sigue escribiendo con la versión legible del número y la
+  unidad. Es un dato repetido, asumido a propósito: hay filas viejas que solo entienden esa
+  columna y dejarla vacía las dejaría en blanco sin dar ningún error.
+- Las publicaciones sin precio **no muestran un total de $0**: se omite la línea.
+- Los valores viejos de periodicidad (`unica`, `constante`) se muestran tal cual en vez de
+  desaparecer.
+
+**Pendiente heredado:** `material_clave` guarda `PENDIENTE-SMA` en todas. Las claves reales
+hacen falta de verdad para el manifiesto (tarea 10), así que hay que capturarlas antes.
 
 ---
 

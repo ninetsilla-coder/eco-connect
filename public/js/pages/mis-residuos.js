@@ -4,7 +4,10 @@
 
 import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
-import { listarMios, cambiarEstadoResiduo } from "../data/residuos.js";
+import {
+  listarMios, cambiarEstadoResiduo, textoPrecio, textoCantidad,
+} from "../data/residuos.js";
+import { etiqueta, PERIODICIDADES, CONDICIONES } from "../data/materiales.js";
 import { listarGestionDeResiduos, agruparPorResiduo } from "../data/cumplimiento.js";
 import {
   listarMensajesDePublicacion,
@@ -23,19 +26,33 @@ const estadoLista = document.getElementById("list-status");
 const vacio = document.getElementById("empty-state");
 
 const CAMPOS_META = [
+  ["Precio", "precio_texto"],
   ["Cantidad", "cantidad"],
   ["Ubicación", "ubicacion"],
-  ["Frecuencia", "frecuencia"],
-  ["Estado", "estado_residuo"],
+  ["Periodicidad", "frecuencia"],
+  ["Condición", "estado_residuo"],
   ["Estado venta", "estado"],
 ];
+
+// Ver lo mismo que ve el comprador, comisión incluida. Ver el comentario
+// de la función gemela en comprador-explorar-residuos.js: se arma en la
+// página porque junta dos módulos de `data/`, que no se importan entre sí.
+function vistaDeResiduo(residuo) {
+  return {
+    ...residuo,
+    precio_texto: textoPrecio(residuo),
+    cantidad: textoCantidad(residuo),
+    frecuencia: etiqueta(PERIODICIDADES, residuo.frecuencia),
+    estado_residuo: etiqueta(CONDICIONES, residuo.estado_residuo),
+  };
+}
 
 function textoBotonEstado(residuo) {
   return residuo.estado === "vendido" ? "Marcar como disponible" : "Marcar como vendido";
 }
 
 function crearTarjeta(residuo, usuarioId) {
-  const { item, meta } = crearTarjetaResiduo(residuo, CAMPOS_META);
+  const { item, meta } = crearTarjetaResiduo(vistaDeResiduo(residuo), CAMPOS_META);
 
   // ---------- Acciones ----------
   const acciones = document.createElement("div");
@@ -78,7 +95,7 @@ function crearTarjeta(residuo, usuarioId) {
 
       residuo.estado = actualizado.estado;
       botonEstado.textContent = textoBotonEstado(residuo);
-      pintarMeta(meta, residuo, CAMPOS_META);
+      pintarMeta(meta, vistaDeResiduo(residuo), CAMPOS_META);
     } catch (err) {
       console.error("Error actualizando estado:", err);
       botonEstado.textContent = textoPrevio;

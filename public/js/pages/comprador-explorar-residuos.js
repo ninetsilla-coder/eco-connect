@@ -3,11 +3,27 @@
 // ==============================================================
 
 import { montarNavbar } from "../ui/navbar.js";
-import { buscarDisponibles } from "../data/residuos.js";
+import { buscarDisponibles, textoPrecio, textoCantidad } from "../data/residuos.js";
+import { etiqueta, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO } from "../data/materiales.js";
 import { nombresDeEmpresas } from "../data/mensajes.js";
 import { crearTarjetaResiduo } from "../ui/residuo-card.js";
 
 montarNavbar();
+
+// La fila tal como se lee. Se arma aquí y no en `data/` porque mezcla
+// dos módulos de esa capa y §4.1 no deja que se importen entre ellos;
+// tampoco en `ui/`, que no conoce a `data/`. Las páginas son el único
+// sitio donde las dos mitades se pueden juntar.
+function vistaDeResiduo(residuo) {
+  return {
+    ...residuo,
+    precio_texto: textoPrecio(residuo),
+    cantidad: textoCantidad(residuo),
+    frecuencia: etiqueta(PERIODICIDADES, residuo.frecuencia),
+    estado_residuo: etiqueta(CONDICIONES, residuo.estado_residuo),
+    nivel_procesamiento: etiqueta(NIVELES_PROCESAMIENTO, residuo.nivel_procesamiento),
+  };
+}
 
 const lista = document.getElementById("lista-residuos");
 const estadoLista = document.getElementById("status-explorar-residuos");
@@ -17,11 +33,16 @@ const filtroUbicacion = document.getElementById("filtro-ubicacion");
 const botonFiltros = document.getElementById("btn-aplicar-filtros");
 
 // Sin "Estado venta": aquí solo se listan los disponibles.
+// "Precio" va primero: es lo que decide si el comprador sigue leyendo.
+// Las publicaciones anteriores al 2026-09-22 no tienen precio y la
+// tarjeta omite los campos vacíos, así que no sale una línea a medias.
 const CAMPOS_META = [
+  ["Precio", "precio_texto"],
   ["Cantidad", "cantidad"],
   ["Ubicación", "ubicacion"],
-  ["Frecuencia", "frecuencia"],
-  ["Estado", "estado_residuo"],
+  ["Periodicidad", "frecuencia"],
+  ["Procesamiento", "nivel_procesamiento"],
+  ["Condición", "estado_residuo"],
 ];
 
 function mostrarEstado(texto) {
@@ -31,7 +52,7 @@ function mostrarEstado(texto) {
 }
 
 function crearTarjeta(residuo, empresa) {
-  const { item } = crearTarjetaResiduo(residuo, CAMPOS_META, { empresa });
+  const { item } = crearTarjetaResiduo(vistaDeResiduo(residuo), CAMPOS_META, { empresa });
 
   const acciones = document.createElement("div");
   acciones.className = "residuo-actions";

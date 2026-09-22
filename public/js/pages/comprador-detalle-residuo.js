@@ -4,7 +4,10 @@
 
 import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
-import { obtenerResiduo } from "../data/residuos.js";
+import { obtenerResiduo, textoPrecio, textoCantidad } from "../data/residuos.js";
+import {
+  etiqueta, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO,
+} from "../data/materiales.js";
 import { existeInteres, guardarInteres, TIPO_RESIDUO } from "../data/intereses.js";
 import {
   listarMensajesDePublicacion,
@@ -56,10 +59,15 @@ function pintar(residuo, empresa) {
       // equivocada.
       ["Publica", empresa],
       ["Categoría", CATEGORIAS[residuo.categoria] ?? residuo.categoria],
-      ["Cantidad", residuo.cantidad],
+      ["Precio", textoPrecio(residuo)],
+      ["Cantidad del lote", textoCantidad(residuo)],
       ["Ubicación", residuo.ubicacion],
-      ["Frecuencia", residuo.frecuencia],
-      ["Estado del residuo", residuo.estado_residuo],
+      ["Periodicidad", etiqueta(PERIODICIDADES, residuo.frecuencia)],
+      ["Nivel de procesamiento", etiqueta(NIVELES_PROCESAMIENTO, residuo.nivel_procesamiento)],
+      ["Condición", etiqueta(CONDICIONES, residuo.estado_residuo)],
+      ["Impurezas", residuo.condicion_detalle],
+      ["Humedad", residuo.humedad != null ? `${residuo.humedad}%` : ""],
+      ["Clave del catálogo", residuo.material_clave],
       ["Estado de publicación", residuo.estado],
     ])
   );
