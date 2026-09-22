@@ -428,6 +428,57 @@ Se llega desde el menú: "Pago de una operación (ejemplo)" en comprador y "Mani
 (ejemplo)" en generador, cada uno del rol que lo usa en el flujo real. Cuando exista "Mis
 operaciones" (tarea 8), ese será el camino y estos enlaces sobran.
 
+### 16. [x] Lectura asistida de documentos, simulada (§0.1) — hecha el 2026-09-22
+
+Propuesta del equipo, 2026-09-22.
+
+La IA **lee el PDF que sube la empresa y prellena campos**. No es un chatbot, no opina y no
+aprueba nada: quien aprueba es el equipo.
+
+| Dónde | Qué hace |
+|---|---|
+| **Mis autorizaciones** | Al subir el PDF, prellena número de oficio, fecha, vigencia y los materiales que ampara, marcados como **sugeridos**. Nada se guarda hasta que la empresa confirma |
+| **Mi expediente** | Solo comprueba que el archivo sea legible y que la razón social coincida con la de la cuenta. Si no: *"El nombre del documento no coincide con tu razón social. Revísalo antes de enviar."* |
+| **Las dos** | Botón **"Revisar antes de enviar"**: lista en lenguaje simple lo que falta o no cuadra —documentos faltantes, autorizaciones por vencer, razón social distinta—. Es una lista de verificación, **no un dictamen** |
+
+Leyenda fija donde aparezca la lectura automática:
+
+> *"Lectura automática del documento que subiste. Verifica que los datos sean correctos.
+> EcoConnect no valida la autenticidad de tu documentación."*
+
+**En el prototipo, simulado entero:** una espera corta y datos de ejemplo preparados, con su
+`// SIMULADO:` explicando qué hace falta de verdad.
+
+> ⚠️ **Nada de llamadas a una IA desde el navegador.** Haría falta una llave secreta, y en
+> `public/` no puede haber secretos (`CLAUDE.md` §6.3). La versión real es una función en el
+> servidor: ver la tarea 17.
+
+**Dos de las tres comprobaciones del botón de revisar son reales y no necesitan IA:** los
+documentos que faltan salen del catálogo, y las vigencias por vencer, de las fechas ya
+guardadas. Solo la coincidencia de la razón social depende de leer el PDF.
+
+**Cómo quedó construido** (archivos: `data/lectura-documentos.js`, y lo demás dentro de
+`ui/expediente-pantalla.js`):
+
+- Lo prellenado se marca **"Por confirmar"** —chip ámbar y borde del mismo color— y la marca
+  se va en cuanto la empresa toca el campo. **Nunca se pisa lo que ella ya escribió.**
+- **El aviso de vigencia son 3 meses**, que es lo que tarda un refrendo. Avisar el día que
+  vence no sirve, y avisar a un año cansa.
+- **La revisión previa se abre ahí mismo**, sin ventana: la lista se lee con el expediente
+  delante, que es donde hay que corregir.
+- **Solo Autorizaciones prellena.** En "Mi expediente" la lectura únicamente comprueba, como
+  se pidió — aunque el impacto ambiental tenga número de oficio y podría aprovecharlo.
+
+**Para enseñar el aviso de razón social distinta en una demo:** sube un archivo cuyo nombre
+contenga `no-coincide`. Es el único disparador de la simulación, está documentado en el
+código y desaparece con la versión real.
+
+**Lo que fijan las pruebas** (`tests/lectura-documentos.test.js`) no es que la IA acierte
+—hoy está simulada— sino los límites que no debe cruzar cuando sea real: que **no devuelva
+ningún veredicto**, que no invente campos y que la leyenda siga diciendo que EcoConnect no
+valida nada. Si esa primera prueba falla algún día, alguien convirtió una ayuda de captura en
+una revisión automática.
+
 ---
 
 ## Bloque 3 — con la inversión
@@ -446,6 +497,31 @@ para no perderlos de vista.
 | 13. [ ] | Score, bitácora y reporte premium (§10) | Perfil + exportación | Factores por material en el catálogo | En el prototipo se enseña con datos de ejemplo |
 | 14. [ ] | Panel interno de revisión y disputas | Sitio aparte | Rol de equipo | §0.1 lo excluye por completo |
 | 15. [ ] | Selector de modo para empresas con varios roles | Encabezado, "Mis operaciones", perfil | Verificación y Score por rol | Diseño completo abajo. **Bloqueado por C-1** |
+| 17. [ ] | Lectura de documentos de verdad | Función nueva en `api/` | No | Sustituye la simulación de la tarea 16. **Choca con C-6** |
+
+### 17. Lectura de documentos con IA, versión real
+
+Lo que la tarea 16 simula. El navegador manda el PDF a una **función en el servidor**, que lo
+lee con la llave secreta y devuelve los campos. La llave nunca sale de ahí: en `public/` no
+puede haber secretos (`CLAUDE.md` §6.3), y una llave de IA en el navegador la puede usar
+cualquiera a costa de EcoConnect.
+
+**Choca con C-6**, y conviene decirlo antes de empezar: sería la **segunda función
+serverless** del proyecto, cuando `CLAUDE.md` §9 da por hecho que hay una. No es un problema
+grave —`api/` ya existe y el patrón está—, pero es exactamente el tipo de decisión que este
+contrato pide tomar a propósito. Si para entonces ya entró el webhook de Stripe (tarea 9),
+serían tres y toca replantear si el sitio sigue siendo "estático + una función".
+
+**Dato a estimar antes de comprometerlo: el costo por documento.** Depende del modelo y del
+tamaño del PDF, y se multiplica por cada documento de cada expediente —y por cada corrección,
+porque quien reemplaza un PDF lo hace leer otra vez—. Con ~15 documentos por empresa
+verificada, es un costo por alta, no por operación: entra en el OPEX del año 1, no en el
+margen de la comisión.
+
+**Lo que no cambia con la versión real:** la IA sigue sin aprobar nada. Prellena y avisa; el
+veredicto es del equipo. Si algún día eso cambiara, deja de ser una ayuda de captura y pasa a
+ser una revisión automática, con todo lo que implica la cláusula de deslinde del documento
+maestro §06.
 
 Aquí es donde vuelve D-3: si alguna vez una empresa tiene que **operar** con dos roles a la
 vez, la lista que se guarda desde el bloque 1 es el dato que lo permite, pero las reglas de

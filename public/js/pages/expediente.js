@@ -17,8 +17,9 @@ import { requiereSesion, invalidarSesion } from "../core/sesion.js";
 import {
   bloquesDePantalla, listarMiExpediente, guardarDocumento, urlDeDocumento,
   enviarARevision, faltantesPorPantalla, puedeEnviarse, filasDe, admiteVarios,
-  CAMPOS,
+  documentosDeRol, vigenciasPorVencer, CAMPOS,
 } from "../data/expediente.js";
+import { leerDocumento, LEYENDA_LECTURA } from "../data/lectura-documentos.js";
 import { MATERIALES } from "../data/materiales.js";
 import { infoEstado } from "../ui/estado-cuenta.js";
 import { montarExpediente, SUBTITULOS } from "../ui/expediente-pantalla.js";
@@ -43,5 +44,9 @@ montarExpediente({
     faltantesPorPantalla,
     puedeEnviarse,
     enviar: enviarARevision,
+    documentosDeRol,
+    vigenciasPorVencer,
+    leerDocumento,
+    leyendaLectura: LEYENDA_LECTURA,
   },
 });

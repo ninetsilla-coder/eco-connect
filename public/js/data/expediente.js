@@ -474,6 +474,36 @@ export async function guardarDocumento(usuarioId, doc, valores, archivo, filaId 
 }
 
 // --------------------------------------------------------------
+// Autorizaciones por vencer
+// --------------------------------------------------------------
+// Tres meses: lo que tarda un refrendo en tramitarse. Avisar el día
+// que vence no sirve de nada, y avisar a un año cansa.
+//
+// Esto NO necesita leer ningún PDF: sale de las fechas que la empresa
+// ya capturó. Es la mitad real de la revisión previa.
+export const MESES_AVISO_VIGENCIA = 3;
+
+export function vigenciasPorVencer(guardados = [], { hoy = new Date(), meses = MESES_AVISO_VIGENCIA } = {}) {
+  const limite = new Date(hoy);
+  limite.setMonth(limite.getMonth() + meses);
+
+  const porId = new Map(DOCUMENTOS.map((doc) => [doc.id, doc]));
+
+  return guardados
+    .filter((fila) => fila.vigencia)
+    .map((fila) => ({
+      id: fila.id,
+      tipo_documento: fila.tipo_documento,
+      nombre: porId.get(fila.tipo_documento)?.nombre ?? fila.tipo_documento,
+      vigencia: fila.vigencia,
+      fecha: new Date(`${fila.vigencia}T00:00:00`),
+    }))
+    .filter(({ fecha }) => !Number.isNaN(fecha.getTime()) && fecha <= limite)
+    .map((aviso) => ({ ...aviso, vencida: aviso.fecha < new Date(hoy.toDateString()) }))
+    .sort((a, b) => a.fecha - b.fecha);
+}
+
+// --------------------------------------------------------------
 // Qué transportistas tienen sus papeles, sin enseñar cuáles
 // --------------------------------------------------------------
 // El comprador necesita saber si un transportista está en regla antes

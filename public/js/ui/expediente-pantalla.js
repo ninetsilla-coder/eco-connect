@@ -154,6 +154,89 @@ function crearCampo(doc, clave, guardado, sufijo, { campos, materiales }) {
   return envoltorio;
 }
 
+// Marca un control como prellenado por la lectura del PDF. La marca se
+// va en cuanto la empresa lo toca: a partir de ahí el dato es suyo.
+function marcarPorConfirmar(control, etiqueta) {
+  control.classList.add("campo-por-confirmar");
+
+  if (etiqueta && !etiqueta.querySelector(".chip-por-confirmar")) {
+    const chip = document.createElement("span");
+    chip.className = "chip-por-confirmar";
+    chip.textContent = "Por confirmar";
+    etiqueta.appendChild(chip);
+  }
+
+  const soltar = () => {
+    control.classList.remove("campo-por-confirmar");
+    etiqueta?.querySelector(".chip-por-confirmar")?.remove();
+  };
+
+  control.addEventListener("input", soltar, { once: true });
+  control.addEventListener("change", soltar, { once: true });
+}
+
+// Pinta el resultado de la lectura: en las autorizaciones prellena; en
+// los documentos de la empresa solo comprueba el nombre.
+function pintarLectura(aviso, rejilla, doc, lectura, opciones) {
+  aviso.className = "lectura-aviso";
+
+  if (!lectura?.legible) {
+    aviso.classList.add("mal");
+    aviso.textContent = "No se pudo leer el archivo. Sube un PDF legible.";
+    return;
+  }
+
+  let prellenados = 0;
+
+  // En "Mi expediente" la lectura solo comprueba: no prellena. Es una
+  // decisión de pantalla, no de documento — el impacto ambiental tiene
+  // número de oficio y ahí tampoco se rellena.
+  const campos = opciones.prellenar ? (lectura.campos ?? {}) : {};
+  const materiales = opciones.prellenar ? (lectura.materiales ?? []) : [];
+
+  Object.entries(campos).forEach(([clave, valor]) => {
+    const control = rejilla.querySelector(`[data-campo="${clave}"]`);
+    // No se pisa lo que la empresa ya escribió: lo suyo manda sobre
+    // una lectura automática.
+    if (!control || control.value) return;
+
+    control.value = valor;
+    marcarPorConfirmar(control, rejilla.querySelector(`label[for="${control.id}"]`));
+    prellenados += 1;
+  });
+
+  materiales.forEach((id) => {
+    const casilla = rejilla.querySelector(`.material-casilla[value="${id}"]`);
+    if (!casilla || casilla.checked) return;
+
+    casilla.checked = true;
+    casilla.closest("label")?.classList.add("material-por-confirmar");
+    casilla.addEventListener(
+      "change",
+      () => casilla.closest("label")?.classList.remove("material-por-confirmar"),
+      { once: true },
+    );
+    prellenados += 1;
+  });
+
+  const partes = [];
+
+  if (!lectura.coincide) {
+    aviso.classList.add("mal");
+    partes.push("El nombre del documento no coincide con tu razón social. Revísalo antes de enviar.");
+    opciones.alDetectarNombre?.(doc, false);
+  } else {
+    aviso.classList.add("bien");
+    partes.push(prellenados
+      ? "Documento legible. Revisa los datos que rellenamos por ti."
+      : "Documento legible. El nombre coincide con tu razón social.");
+    opciones.alDetectarNombre?.(doc, true);
+  }
+
+  partes.push(opciones.leyendaLectura ?? "");
+  aviso.textContent = partes.filter(Boolean).join(" ");
+}
+
 // Un REGISTRO de un documento. Los de la empresa tienen uno; las
 // autorizaciones, uno por establecimiento. `clave` identifica el nodo
 // para poder repintar solo este registro al guardarlo, sin tocar lo que
@@ -232,6 +315,36 @@ export function crearRegistro(doc, guardado, opciones, indice = null, clave = nu
   }
 
   caja.appendChild(rejilla);
+
+  // ---------- Lectura asistida ----------
+  // La IA lee el PDF y prellena. No decide nada: lo que rellena queda
+  // marcado "Por confirmar" hasta que la empresa lo toca, y nada se
+  // guarda hasta que le da a Guardar.
+  const avisoLectura = document.createElement("p");
+  avisoLectura.className = "lectura-aviso";
+  caja.appendChild(avisoLectura);
+
+  if (entradaArchivo && opciones.leerDocumento) {
+    entradaArchivo.addEventListener("change", async () => {
+      const archivo = entradaArchivo.files?.[0];
+      if (!archivo) return;
+
+      avisoLectura.className = "lectura-aviso leyendo";
+      avisoLectura.textContent = "Leyendo documento...";
+
+      let lectura;
+      try {
+        lectura = await opciones.leerDocumento(doc, archivo);
+      } catch (err) {
+        console.warn("No se pudo leer el documento:", err);
+        avisoLectura.className = "lectura-aviso";
+        avisoLectura.textContent = "";
+        return;
+      }
+
+      pintarLectura(avisoLectura, rejilla, doc, lectura, opciones);
+    });
+  }
 
   // ---------- Acciones ----------
   const acciones = document.createElement("div");
@@ -428,6 +541,79 @@ function crearAvisoOtraPantalla({ titulo, detalle, enlace, texto }) {
   return caja;
 }
 
+// La revisión previa. Es una LISTA DE VERIFICACIÓN, no un dictamen:
+// quien aprueba un expediente es el equipo. Se dice en la propia
+// pantalla, no solo aquí.
+//
+// De sus tres apartados, dos no necesitan leer ningún PDF —lo que falta
+// sale del catálogo y las vigencias de las fechas capturadas—. Solo el
+// nombre de la empresa viene de la lectura, y por eso solo aparece de
+// los documentos que se hayan subido en esta visita.
+function crearRevisionPrevia({ grupos, vigencias, nombresDistintos, docsPorId }) {
+  const panel = document.createElement("div");
+  panel.className = "revision-previa";
+
+  const titulo = document.createElement("h3");
+  titulo.textContent = "Revisión previa";
+  panel.appendChild(titulo);
+
+  const apartado = (encabezado, elementos) => {
+    if (!elementos.length) return;
+
+    const h = document.createElement("p");
+    h.className = "revision-apartado";
+    h.textContent = encabezado;
+    panel.appendChild(h);
+
+    const lista = document.createElement("ul");
+    elementos.forEach((texto) => {
+      const li = document.createElement("li");
+      li.textContent = texto;
+      lista.appendChild(li);
+    });
+    panel.appendChild(lista);
+  };
+
+  apartado(
+    "Te falta subir",
+    grupos.flatMap((grupo) =>
+      grupo.documentos.map((doc) => `${doc.nombre} — en ${grupo.titulo}`)),
+  );
+
+  apartado(
+    "Vence pronto",
+    vigencias.map((v) => {
+      const fecha = v.fecha.toLocaleDateString("es-MX", {
+        day: "numeric", month: "long", year: "numeric",
+      });
+      return v.vencida
+        ? `${v.nombre} — venció el ${fecha}`
+        : `${v.nombre} — vence el ${fecha}`;
+    }),
+  );
+
+  apartado(
+    "Revisa",
+    nombresDistintos.map((id) =>
+      `El nombre en "${docsPorId.get(id)?.nombre ?? id}" no coincide con tu razón social`),
+  );
+
+  if (panel.querySelectorAll("li").length === 0) {
+    const listo = document.createElement("p");
+    listo.textContent = "Todo listo para enviar.";
+    panel.appendChild(listo);
+  }
+
+  const nota = document.createElement("p");
+  nota.className = "revision-nota";
+  nota.textContent =
+    "Esto es una lista de verificación, no una revisión. Quien aprueba tu expediente " +
+    "es el equipo de EcoConnect.";
+  panel.appendChild(nota);
+
+  return panel;
+}
+
 // --------------------------------------------------------------
 // La pantalla entera
 // --------------------------------------------------------------
@@ -492,8 +678,23 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
 
   mostrar(estadoPagina, "");
 
+  // Qué documentos salieron con un nombre distinto al de la cuenta.
+  // Solo de esta visita: la lectura no se guarda en ningún sitio.
+  const nombresDistintos = new Set();
+
   const opciones = {
     bloques: datos.bloques(rol, pantallaId, rfc),
+    leyendaLectura: datos.leyendaLectura,
+    prellenar: pantallaId === "autorizaciones",
+    leerDocumento: datos.leerDocumento
+      ? (doc, archivo) => datos.leerDocumento(doc, archivo, {
+        razonSocial: sesion.perfil?.company_name,
+      })
+      : null,
+    alDetectarNombre: (doc, coincide) => {
+      if (coincide) nombresDistintos.delete(doc.id);
+      else nombresDistintos.add(doc.id);
+    },
     subtitulos,
     campos,
     materiales,
@@ -572,6 +773,31 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
   montarPantallaExpediente(contenedorBloques, opciones);
   pintarPendientes();
   if (cajaEnvio) cajaEnvio.style.display = "block";
+
+  // ---------- Revisar antes de enviar ----------
+  const botonRevisar = document.getElementById("btn-revisar");
+  const panelRevision = document.getElementById("revision-panel");
+
+  botonRevisar?.addEventListener("click", () => {
+    if (!panelRevision) return;
+
+    // Se abre y se cierra ahí mismo, sin ventana: la lista se lee con
+    // el expediente delante, que es donde hay que corregir.
+    if (panelRevision.firstChild) {
+      panelRevision.textContent = "";
+      botonRevisar.textContent = "Revisar antes de enviar";
+      return;
+    }
+
+    panelRevision.appendChild(crearRevisionPrevia({
+      grupos: datos.faltantesPorPantalla(rol, guardados, rfc)
+        .filter((g) => g.documentos.length),
+      vigencias: datos.vigenciasPorVencer(guardados),
+      nombresDistintos: [...nombresDistintos],
+      docsPorId: new Map(datos.documentosDeRol(rol, rfc).map((d) => [d.id, d])),
+    }));
+    botonRevisar.textContent = "Ocultar la revisión";
+  });
 
   botonEnviar?.addEventListener("click", async () => {
     mostrar(estadoEnvio, "Enviando...");

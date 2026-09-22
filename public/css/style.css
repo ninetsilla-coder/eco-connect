@@ -1585,3 +1585,334 @@ a.btn-outline:hover,
 
 
 
+
+/* ==========================================================
+   Expediente: las dos pantallas
+   ==========================================================
+   Estaban copiadas en expediente.html y autorizaciones.html,
+   y ya habian divergido: los estilos de la lectura asistida
+   solo llegaron a una. Dos paginas con el mismo diseno no
+   pueden tener dos hojas. */
+    .page-hero {
+      max-width: 960px;
+      margin: 40px auto 8px;
+      padding: 0 16px;
+    }
+
+    .page-hero h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .page-hero p {
+      color: #4b5563;
+      max-width: 680px;
+      font-size: 0.98rem;
+    }
+
+    .expediente-layout {
+      max-width: 960px;
+      margin: 0 auto 48px;
+      padding: 0 16px;
+    }
+
+    /* Aviso del estado de la cuenta. El color lo pone el JS. */
+    .estado-cuenta {
+      margin: 20px 0 8px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    .estado-cuenta h2 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .estado-cuenta p {
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+
+    /* Los dos niveles del expediente: lo que es de la empresa entera y
+       lo que la SMA autoriza por establecimiento. */
+    .nivel {
+      margin-top: 30px;
+    }
+
+    .nivel-titulo {
+      font-size: 1.3rem;
+      letter-spacing: 0.01em;
+    }
+
+    .nivel-sub {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .bloque {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px 22px 22px;
+      margin-top: 14px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+    }
+
+    .bloque > h3 {
+      font-size: 1.05rem;
+      margin-bottom: 2px;
+    }
+
+    /* Un documento con sus registros. El separador ayuda a ver dónde
+       acaba un establecimiento y empieza el siguiente. */
+    .documento-grupo + .documento-grupo {
+      margin-top: 6px;
+    }
+
+    .btn-agregar-registro {
+      margin-top: 10px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px dashed #9ca3af;
+      background: #ffffff;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .bloque-sub {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    .documento {
+      border-top: 1px solid #f3f4f6;
+      padding: 16px 0 4px;
+    }
+
+    .documento-cabecera {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .documento-cabecera h3 {
+      font-size: 0.97rem;
+      font-weight: 600;
+    }
+
+    .etiqueta {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .etiqueta-obligatorio { background: #fef3c7; color: #92400e; }
+    .etiqueta-opcional    { background: #f3f4f6; color: #4b5563; }
+    .etiqueta-pendiente   { background: #e0e7ff; color: #3730a3; }
+    .etiqueta-aprobado    { background: #dcfce7; color: #166534; }
+    .etiqueta-rechazado   { background: #fee2e2; color: #991b1b; }
+
+    .documento-campos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px 14px;
+      align-items: end;
+    }
+
+    .documento-campos label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 3px;
+    }
+
+    .documento-campos input,
+    .documento-campos select,
+    .documento-campos textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 7px 9px;
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+
+    .documento-campos textarea {
+      min-height: 62px;
+      resize: vertical;
+    }
+
+    /* Las autorizaciones de la SMA son por residuo: estas casillas
+       dicen cuáles ampara cada documento. */
+    .campo-materiales {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 8px 12px 10px;
+    }
+
+    .campo-materiales legend {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #374151;
+      padding: 0 4px;
+    }
+
+    .materiales-rejilla {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 4px 12px;
+      margin-top: 6px;
+    }
+
+    .material-opcion {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.85rem;
+      font-weight: 400;
+      cursor: pointer;
+    }
+
+    .campo-materiales .material-casilla {
+      width: auto;
+      flex: 0 0 auto;
+      margin: 0;
+    }
+
+    .documento-acciones {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .documento-estado {
+      font-size: 0.82rem;
+      min-height: 1.2em;
+    }
+
+    .documento-estado.error   { color: #b91c1c; }
+    .documento-estado.success { color: #166534; }
+
+    .enlace-archivo {
+      font-size: 0.82rem;
+      color: #0f3d2e;
+    }
+
+    .envio {
+      margin-top: 24px;
+      padding: 18px 22px;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+    }
+
+    .envio ul {
+      margin: 4px 0 12px 18px;
+      font-size: 0.88rem;
+      color: #4b5563;
+    }
+
+    /* Los obligatorios están repartidos entre las dos pantallas: la
+       lista dice en cuál está cada uno. */
+    .faltantes-pantalla {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .envio-acciones {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ---------- Lectura asistida ---------- */
+    .lectura-aviso {
+      font-size: 0.8rem;
+      color: #4b5563;
+      margin-top: 8px;
+      min-height: 1em;
+    }
+
+    .lectura-aviso.leyendo::after {
+      content: "";
+      animation: puntos 1.2s steps(4, end) infinite;
+    }
+
+    @keyframes puntos { to { content: "..."; } }
+
+    .lectura-aviso.bien { color: #166534; }
+    .lectura-aviso.mal  { color: #92400e; }
+
+    /* Lo que rellenó la lectura queda marcado hasta que la empresa lo
+       confirma. Ámbar, no verde: está por revisar, no aprobado. */
+    .campo-por-confirmar,
+    .material-por-confirmar {
+      border-color: #f59e0b !important;
+      background: #fffbeb;
+    }
+
+    .material-por-confirmar {
+      border: 1px solid #f59e0b;
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+
+    .chip-por-confirmar {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 0.68rem;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+
+    /* ---------- Revisión previa ---------- */
+    .revision-previa {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f9fafb;
+    }
+
+    .revision-previa h3 { font-size: 0.98rem; margin-bottom: 6px; }
+
+    .revision-apartado {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .revision-previa ul {
+      margin: 4px 0 0 18px;
+      font-size: 0.88rem;
+      color: #4b5563;
+    }
+
+    .revision-nota {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      font-style: italic;
+      color: #6b7280;
+    }
+
+    @media (max-width: 640px) {
+      .page-hero h1 { font-size: 1.6rem; }
+      .bloque { padding: 16px; }
+    }
