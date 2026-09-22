@@ -43,6 +43,15 @@ export function pideHumedad(id) {
   return buscarMaterial(id)?.humedad === true;
 }
 
+// Las publicaciones guardan el NOMBRE del material en `tipo`, no su
+// identificador. Para cruzarlas con los materiales que ampara una
+// autorización hace falta el camino de vuelta.
+export function idPorNombre(nombre) {
+  if (!nombre) return null;
+  const buscado = String(nombre).trim().toLowerCase();
+  return MATERIALES.find((m) => m.nombre.toLowerCase() === buscado)?.id ?? null;
+}
+
 // Fase 1: SOLO Torreón (documento maestro §01 y §18). No es una lista a
 // medio llenar: la fase 1 opera únicamente con permisos de Coahuila y
 // con empresas de Torreón, y el municipio acaba en el manifiesto.

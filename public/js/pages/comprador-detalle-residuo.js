@@ -6,8 +6,9 @@ import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { obtenerResiduo, textoPrecio, textoCantidad } from "../data/residuos.js";
 import {
-  etiqueta, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO,
+  etiqueta, idPorNombre, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO,
 } from "../data/materiales.js";
+import { listarMiExpediente, amparaMaterial } from "../data/expediente.js";
 import { existeInteres, guardarInteres, TIPO_RESIDUO } from "../data/intereses.js";
 import {
   listarMensajesDePublicacion,
@@ -34,6 +35,47 @@ montarNavbar();
     bloquearSiNoOpera(document.getElementById(id), sesion.estado, { accion: "contactar" });
   });
 })();
+
+// Las autorizaciones de la SMA son por residuo: una recicladora
+// autorizada para PET no puede recibir cobre. Si la del comprador no
+// ampara este material, se le dice antes de que escriba al generador y
+// los dos pierdan el tiempo.
+//
+// ⚠️ Aviso, no control (misma pieza pendiente que D-15). Y si el
+// comprador aún no declaró materiales, no se avisa nada: no se sabe.
+async function avisarSiNoAmpara(residuo) {
+  const { usuario } = await obtenerSesion();
+  const material = idPorNombre(residuo?.tipo);
+  if (!usuario || !material) return;
+
+  let expediente = [];
+  try {
+    expediente = await listarMiExpediente(usuario.id);
+  } catch (err) {
+    console.warn("No se pudo leer el expediente:", err);
+    return;
+  }
+  if (amparaMaterial(expediente, material)) return;
+
+  const aviso = document.createElement("div");
+  aviso.className = "aviso-estado";
+  aviso.setAttribute("role", "status");
+
+  const titulo = document.createElement("strong");
+  titulo.textContent = "Tu autorización no ampara este material";
+
+  const detalle = document.createElement("p");
+  detalle.textContent =
+    `Tu autorización de la SMA no incluye ${residuo.tipo}. ` +
+    "Para recibirlo necesitas ampliarla y subir el documento actualizado a tu expediente.";
+
+  const enlace = document.createElement("a");
+  enlace.href = "expediente.html";
+  enlace.textContent = "Ir a mi expediente";
+
+  aviso.append(titulo, detalle, enlace);
+  document.querySelector("main")?.prepend(aviso);
+}
 
 const estadoPagina = document.getElementById("status-detalle-residuo");
 const layout = document.getElementById("detalle-layout");
@@ -115,6 +157,10 @@ if (!residuoId) {
       pintar(residuo, empresa);
       if (layout) layout.style.display = "grid";
       mostrarEstado("");
+
+      // Ya se sabe qué material es: toca decirle al comprador si su
+      // autorización no lo ampara, antes de que escriba al generador.
+      avisarSiNoAmpara(residuo);
 
       // ---------- Conversación con el proveedor ----------
       // Antes este botón solo decía "versión futura". El contacto es el

@@ -915,17 +915,32 @@ create table if not exists public.expediente_documentos (
   vigencia       date,
   archivo_ruta   text,
   notas          text,
+  -- Qué materiales del catálogo ampara este documento. Las
+  -- autorizaciones de la SMA son POR RESIDUO (Reglamento de la Ley de
+  -- Residuos de Coahuila): una recicladora autorizada para PET no puede
+  -- recibir cobre.
+  materiales     text[],
   estado         text not null default 'pendiente',
   motivo_rechazo text,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
 
--- Un documento por tipo y empresa: volver a subir la constancia
--- sustituye a la anterior en vez de acumular copias que nadie sabe cuál
--- es la buena.
+-- Un documento por tipo y empresa... salvo las tres autorizaciones.
+--
+-- La regla original valía para la constancia fiscal: nadie tiene dos, y
+-- volver a subirla debe sustituir a la anterior en vez de acumular
+-- copias que nadie sabe cuál es la buena.
+--
+-- Pero la SMA autoriza POR ESTABLECIMIENTO: una empresa con tres
+-- plantas tiene tres registros de generador, cada uno con su oficio y
+-- sus materiales. Por eso quedan fuera del índice (2026-09-22).
+drop index if exists public.expediente_documento_unico;
+
 create unique index if not exists expediente_documento_unico
-  on public.expediente_documentos (user_id, tipo_documento);
+  on public.expediente_documentos (user_id, tipo_documento)
+  where tipo_documento not in
+    ('registro_generador', 'autorizacion_sma', 'autorizacion_transporte');
 
 alter table public.expediente_documentos enable row level security;
 
@@ -955,8 +970,12 @@ create policy "expediente_borra" on public.expediente_documentos
 -- dejaría a cualquiera ponerse `estado = 'aprobado'`.
 revoke update on public.expediente_documentos from authenticated;
 grant  update (bloque, tipo_documento, subtipo, autoridad, numero_oficio,
-               fecha, vigencia, archivo_ruta, notas, updated_at)
+               fecha, vigencia, archivo_ruta, notas, materiales, updated_at)
   on public.expediente_documentos to authenticated;
+
+-- Para una tabla que ya existía antes del 2026-09-22.
+alter table public.expediente_documentos
+  add column if not exists materiales text[];
 
 
 -- ==============================================================

@@ -31,6 +31,7 @@ export const CAMPOS = Object.freeze({
   SUBTIPO: "subtipo",
   AUTORIDAD: "autoridad",
   NOTAS: "notas",
+  MATERIALES: "materiales",
 });
 
 // --------------------------------------------------------------
@@ -39,6 +40,18 @@ export const CAMPOS = Object.freeze({
 // `roles: null` significa "todos". Un documento sin `obligatorio` es de
 // los recomendados: no bloquea el envío, pero da la insignia de
 // "expediente completo" (cambios-plataforma §3).
+//
+// El expediente tiene DOS NIVELES, y la diferencia no es de orden:
+//
+//   empresa        Se llenan una vez y valen para cualquier rol. Una
+//                  constancia fiscal es de la empresa, no del generador.
+//   autorizaciones Lo que la SMA autoriza, y se autoriza POR
+//                  ESTABLECIMIENTO: una empresa con tres plantas tiene
+//                  tres registros. Por eso llevan `varios: true` y la
+//                  base les permite repetirse.
+//
+// Los materiales que ampara la empresa son la SUMA de todos sus
+// registros, no los del último que subió.
 
 const DOCUMENTOS = Object.freeze([
   // ---------- Datos generales (todos los roles) ----------
@@ -64,9 +77,10 @@ const DOCUMENTOS = Object.freeze([
     campos: [CAMPOS.SUBTIPO, CAMPOS.AUTORIDAD, CAMPOS.OFICIO],
     subtipos: ["Informe preventivo", "Manifestación de impacto ambiental"],
     autoridades: ["SMA", "SEMARNAT"],
-    // Este no se coteja contra ningún padrón: no existe uno público
-    // (documento maestro §20). Solo se pre-verifica que esté y se lea.
-    ayuda: "Solo se comprueba que esté cargada y legible: no hay padrón público que cotejar.",
+    ayuda: "Sube tu autorización de impacto ambiental vigente.",
+    // Cómo lo revisa el equipo: solo pre-verificación —que esté
+    // cargada, sea legible y la razón social coincida—. No hay padrón
+    // público de impacto ambiental que cotejar (maestro §20).
   },
 
   // ---------- Generador ----------
@@ -75,19 +89,46 @@ const DOCUMENTOS = Object.freeze([
     bloque: "Registro de generador",
     nombre: "Registro como generador de residuos de manejo especial",
     roles: ["proveedor"], obligatorio: true,
-    campos: [CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.VIGENCIA],
-    ayuda: "Se coteja contra el padrón público de la SMA: razón social, número de oficio y vigencia.",
+    // Sin VIGENCIA a propósito: el registro de generador NO vence. Se
+    // actualiza cada tres años (documento maestro §20).
+    campos: [CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.MATERIALES],
+    renovacion: "actualiza3",
+    varios: true,
+    ayuda: "Marca los materiales que aparecen en tu autorización.",
+    // Cómo lo revisa el equipo: razón social y número de oficio se
+    // cotejan contra el padrón público de la SMA. Los materiales NO
+    // están en el padrón; se leen del PDF.
+  },
+  {
+    id: "plan_manejo",
+    bloque: "Registro de generador",
+    nombre: "Registro del plan de manejo",
+    roles: ["proveedor"], obligatorio: true,
+    campos: [CAMPOS.OFICIO, CAMPOS.FECHA],
+    renovacion: "actualiza3",
+    ayuda: "Sube el registro de tu plan de manejo ante la SMA.",
+    // Obligatorio para todos: en la fase 1 solo entran grandes
+    // generadores, que deben tenerlo.
   },
 
   // ---------- Comprador ----------
   {
     id: "autorizacion_sma",
     bloque: "Autorización SMA",
-    nombre: "Autorización de acopio, reciclaje o tratamiento",
+    nombre: "Autorización de acopio, reciclado o tratamiento",
     roles: ["comprador"], obligatorio: true,
-    campos: [CAMPOS.SUBTIPO, CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.VIGENCIA],
-    subtipos: ["Acopio", "Reciclaje y co-procesamiento", "Tratamiento"],
-    ayuda: "Se coteja contra el padrón público de la SMA.",
+    campos: [CAMPOS.SUBTIPO, CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.VIGENCIA, CAMPOS.MATERIALES],
+    // Las tres modalidades tal como las nombra la SMA.
+    subtipos: [
+      "Acopio y/o almacenamiento",
+      "Reciclado y/o co-procesamiento",
+      "Tratamiento",
+    ],
+    renovacion: "2años",
+    varios: true,
+    ayuda: "Marca los materiales que aparecen en tu autorización. Recuerda que se refrenda cada dos años.",
+    // Cómo lo revisa el equipo: oficio y vigencia contra el padrón de
+    // la SMA; los materiales, leyendo el PDF.
   },
 
   // ---------- Transportista ----------
@@ -96,8 +137,12 @@ const DOCUMENTOS = Object.freeze([
     bloque: "Autorización de transporte",
     nombre: "Autorización de recolección y transporte en Coahuila",
     roles: ["logistica"], obligatorio: true,
-    campos: [CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.VIGENCIA],
-    ayuda: "Se coteja contra el padrón público de la SMA.",
+    campos: [CAMPOS.OFICIO, CAMPOS.FECHA, CAMPOS.VIGENCIA, CAMPOS.MATERIALES],
+    renovacion: "2años",
+    varios: true,
+    ayuda: "Marca los materiales que puedes transportar según tu autorización. Se refrenda cada dos años.",
+    // Cómo lo revisa el equipo: oficio y vigencia contra el padrón de
+    // la SMA; los materiales, leyendo el PDF.
   },
   {
     id: "vehiculos",
@@ -111,6 +156,12 @@ const DOCUMENTOS = Object.freeze([
     ayuda: "Escribe el tipo y las placas de cada vehículo, uno por renglón.",
     sinArchivo: true,
   },
+  // NOTA sobre los textos de `ayuda`: son instrucciones para la
+  // EMPRESA que sube el documento, no apuntes para quien lo revisa.
+  // Lo segundo va en comentarios como los de arriba y en
+  // docs/plan-de-trabajo.md. En pantalla, "se coteja contra el padrón"
+  // no le dice a nadie qué tiene que hacer, y además promete una
+  // revisión que el usuario no controla.
   {
     id: "poliza_seguro",
     bloque: "Autorización de transporte",
@@ -137,7 +188,7 @@ const DOCUMENTOS = Object.freeze([
     bloque: "Recomendados",
     nombre: "Caracterización de laboratorio",
     roles: ["proveedor"], obligatorio: false, campos: [],
-    ayuda: "Demuestra que el material no es peligroso. Da la insignia de material caracterizado.",
+    ayuda: "Si tienes un análisis de laboratorio de tu material, súbelo: da la insignia de material caracterizado.",
   },
   {
     id: "certificacion_ambiental",
@@ -153,8 +204,83 @@ const DOCUMENTOS = Object.freeze([
   },
 ]);
 
+// --------------------------------------------------------------
+// Qué materiales tiene autorizados una empresa
+// --------------------------------------------------------------
+// Las autorizaciones de la SMA son POR RESIDUO: una recicladora
+// autorizada para PET no puede recibir cobre. Por eso cada autorización
+// declara qué materiales ampara, y de ahí salen las tres reglas del
+// Reglamento de la Ley de Residuos de Coahuila:
+//
+//   generador      publica solo lo que está en su registro
+//   comprador      solicita solo lo que su autorización cubre
+//   transportista  ve solo solicitudes de lo que cubre
+//
+// ⚠️ EN EL PROTOTIPO ESTO ES UN AVISO, NO UN CONTROL. La base no
+// comprueba nada todavía: es la misma pieza pendiente que D-15, y
+// conviene cerrarlas juntas.
+//
+// Devuelve null cuando la empresa aún no ha declarado materiales en
+// ninguna autorización. Null no es "no ampara nada": es "todavía no se
+// sabe", y quien lo use no debe bloquear con esa respuesta.
+export function materialesAmparados(guardados = []) {
+  const declarados = guardados
+    .filter((fila) => Array.isArray(fila.materiales) && fila.materiales.length)
+    .flatMap((fila) => fila.materiales);
+
+  return declarados.length ? [...new Set(declarados)] : null;
+}
+
+export function amparaMaterial(guardados, materialId) {
+  const amparados = materialesAmparados(guardados);
+  if (!amparados || !materialId) return true; // sin datos no se bloquea
+  return amparados.includes(materialId);
+}
+
 export function documentosDeRol(rol) {
   return DOCUMENTOS.filter((doc) => doc.roles === null || doc.roles.includes(rol));
+}
+
+// A qué nivel pertenece cada bloque. Se deduce del bloque y no se
+// repite documento por documento: así no puede quedar un documento de
+// "Datos generales" clasificado como autorización por un descuido.
+const NIVEL_DE_BLOQUE = {
+  "Datos generales": "empresa",
+  "Impacto ambiental": "empresa",
+  "Registro de generador": "autorizaciones",
+  "Autorización SMA": "autorizaciones",
+  "Autorización de transporte": "autorizaciones",
+  "Recomendados": "recomendados",
+};
+
+export const NIVELES = Object.freeze([
+  {
+    id: "empresa",
+    titulo: "Documentos de la empresa",
+    descripcion: "Se llenan una sola vez y valen para todos tus roles.",
+  },
+  {
+    id: "autorizaciones",
+    titulo: "Autorizaciones",
+    descripcion: "La SMA autoriza por establecimiento: si tienes varias plantas, agrega un registro por cada una.",
+  },
+  {
+    id: "recomendados",
+    titulo: "Recomendados",
+    descripcion: "No son obligatorios. Completarlos te da la insignia de expediente completo.",
+  },
+]);
+
+export function nivelDeDocumento(doc) {
+  return NIVEL_DE_BLOQUE[doc.bloque] ?? "empresa";
+}
+
+// Qué documentos admiten varios registros. Se declara documento por
+// documento y no por bloque, porque no coinciden: el plan de manejo
+// está en el bloque del registro de generador y no es una autorización
+// de la SMA. Una prueba lo destapó al pedir lo contrario.
+export function admiteVarios(doc) {
+  return doc?.varios === true;
 }
 
 // Los documentos agrupados por bloque, en el orden del catálogo.
@@ -168,6 +294,17 @@ export function bloquesDeRol(rol) {
   return bloques;
 }
 
+// Los bloques repartidos en los dos niveles, para pintarlos en orden.
+export function nivelesDeRol(rol) {
+  const bloques = bloquesDeRol(rol);
+  return NIVELES
+    .map((nivel) => ({
+      ...nivel,
+      bloques: bloques.filter((b) => NIVEL_DE_BLOQUE[b.nombre] === nivel.id),
+    }))
+    .filter((nivel) => nivel.bloques.length > 0);
+}
+
 // Un documento cuenta como entregado si tiene archivo, o si es de los
 // que no llevan archivo (los vehículos) y tiene texto.
 function entregado(doc, guardado) {
@@ -175,10 +312,19 @@ function entregado(doc, guardado) {
   return doc.sinArchivo ? Boolean(guardado.notas) : Boolean(guardado.archivo_ruta);
 }
 
+// Todas las filas guardadas de un mismo documento. Los de la empresa
+// tienen una; las autorizaciones, una por establecimiento.
+export function filasDe(guardados = [], docId) {
+  return guardados.filter((fila) => fila.tipo_documento === docId);
+}
+
+// Con varios registros basta UNO entregado para que el documento
+// cuente: una empresa con dos plantas que solo ha subido el registro de
+// la primera ya puede operar con esa.
 export function faltantes(rol, guardados = []) {
-  const porTipo = new Map(guardados.map((g) => [g.tipo_documento, g]));
   return documentosDeRol(rol)
-    .filter((doc) => doc.obligatorio && !entregado(doc, porTipo.get(doc.id)))
+    .filter((doc) => doc.obligatorio &&
+      !filasDe(guardados, doc.id).some((fila) => entregado(doc, fila)))
     .map((doc) => doc.id);
 }
 
@@ -189,8 +335,8 @@ export function puedeEnviarse(rol, guardados = []) {
 // La insignia de "expediente completo": además de los obligatorios,
 // todos los recomendados de su rol (cambios-plataforma §3).
 export function expedienteCompleto(rol, guardados = []) {
-  const porTipo = new Map(guardados.map((g) => [g.tipo_documento, g]));
-  return documentosDeRol(rol).every((doc) => entregado(doc, porTipo.get(doc.id)));
+  return documentosDeRol(rol)
+    .every((doc) => filasDe(guardados, doc.id).some((fila) => entregado(doc, fila)));
 }
 
 // --------------------------------------------------------------
@@ -207,10 +353,19 @@ export async function listarMiExpediente(usuarioId) {
   return data ?? [];
 }
 
-// Guarda un documento. `onConflict` sobre (user_id, tipo_documento)
-// hace que volver a subir la constancia sustituya a la anterior en vez
-// de acumular copias — el índice único de politicas.sql §8.2.
-export async function guardarDocumento(usuarioId, doc, valores, archivo) {
+// Guarda un documento. Con `filaId` actualiza ESA fila; sin él, crea
+// una nueva.
+//
+// Antes esto era un upsert por (user_id, tipo_documento), que valía
+// cuando cada documento era único. Desde que las autorizaciones admiten
+// varios registros, el tipo ya no identifica una fila: dos registros de
+// generador comparten tipo y son documentos distintos. La identidad
+// pasa a ser el id de la fila.
+//
+// Lo que impide duplicar la constancia fiscal sigue siendo el índice
+// único de politicas.sql §8.2, que ahora excluye a las tres
+// autorizaciones.
+export async function guardarDocumento(usuarioId, doc, valores, archivo, filaId = null) {
   const ruta = archivo
     ? (await subirArchivos(BUCKET, usuarioId, [archivo], { subcarpeta: doc.id }))[0]
     : null;
@@ -231,6 +386,7 @@ export async function guardarDocumento(usuarioId, doc, valores, archivo) {
     fecha: valores.fecha || null,
     vigencia: valores.vigencia || null,
     notas: valores.notas || null,
+    materiales: valores.materiales?.length ? valores.materiales : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -238,11 +394,13 @@ export async function guardarDocumento(usuarioId, doc, valores, archivo) {
   // el número de oficio no debería perder el PDF.
   if (ruta) fila.archivo_ruta = ruta;
 
-  const { data, error } = await supabaseClient
-    .from(TABLA)
-    .upsert(fila, { onConflict: "user_id,tipo_documento" })
-    .select()
-    .single();
+  const consulta = filaId
+    // El .eq("user_id") es defensa en profundidad, no el control: lo
+    // que impide tocar la fila de otra empresa es `expediente_actualiza`.
+    ? supabaseClient.from(TABLA).update(fila).eq("id", filaId).eq("user_id", usuarioId)
+    : supabaseClient.from(TABLA).insert(fila);
+
+  const { data, error } = await consulta.select().single();
 
   if (error) throw error;
   return data;

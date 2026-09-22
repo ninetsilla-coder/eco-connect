@@ -45,6 +45,14 @@ export const ESTADOS = Object.freeze({
     detalle: "Tu autorización venció. Sube el refrendo para reactivar tus publicaciones.",
     opera: false,
   },
+  // El registro de generador NO vence: se actualiza cada tres años
+  // (documento maestro §20). Llamarle "vencido" a un generador sería
+  // decirle que perdió un permiso que sigue teniendo.
+  actualizacion_pendiente: {
+    titulo: "Actualización pendiente",
+    detalle: "Tu registro de generador se actualiza cada tres años. Sube la actualización para seguir publicando.",
+    opera: false,
+  },
 });
 
 export function infoEstado(estado) {

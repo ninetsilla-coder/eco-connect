@@ -40,10 +40,12 @@ function aplicarSesionEnNavbar({ usuario }) {
   const botonLogin = document.getElementById("login-button");
   const botonLogout = document.getElementById("logout-button");
   const etiquetaCuenta = document.getElementById("account-label");
+  const enlaceExpediente = document.getElementById("expediente-link");
   const haySesion = Boolean(usuario);
 
   if (botonLogin) botonLogin.style.display = haySesion ? "none" : "inline-block";
   if (botonLogout) botonLogout.style.display = haySesion ? "inline-block" : "none";
+  if (enlaceExpediente) enlaceExpediente.style.display = haySesion ? "inline-block" : "none";
   if (etiquetaCuenta) {
     etiquetaCuenta.style.display = haySesion ? "inline-block" : "none";
     etiquetaCuenta.textContent = "Mi cuenta";

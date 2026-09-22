@@ -6,6 +6,7 @@ import { montarNavbar } from "../ui/navbar.js";
 import { requiereSesion, obtenerSesion } from "../core/sesion.js";
 import { crearAvisoEstado, bloquearSiNoOpera, puedeOperar } from "../ui/estado-cuenta.js";
 import { publicarResiduo, COMISION } from "../data/residuos.js";
+import { listarMiExpediente, materialesAmparados } from "../data/expediente.js";
 import {
   MATERIALES, MUNICIPIOS, UNIDADES, PERIODICIDADES,
   NIVELES_PROCESAMIENTO, CONDICIONES, CLAVE_PENDIENTE, pideHumedad,
@@ -53,6 +54,51 @@ function llenarSelect(id, opciones, { vacio = null } = {}) {
 llenarSelect("material", MATERIALES.map(({ id, nombre, categoria }) => ({
   id, nombre: `${nombre} — ${categoria}`,
 })), { vacio: "Selecciona un material" });
+
+// Un generador solo puede publicar los materiales que ampara su
+// registro: las autorizaciones de la SMA son por residuo (Reglamento de
+// la Ley de Residuos de Coahuila). Los que no cubre se apagan en la
+// lista, en vez de esconderse, para que se vea que existen y qué falta.
+//
+// ⚠️ Aviso, no control: la base no lo comprueba todavía. Misma pieza
+// pendiente que D-15.
+//
+// Si todavía no declaró materiales en su expediente, no se apaga nada:
+// no se sabe qué ampara, y bloquear a ciegas dejaría el sitio inservible.
+async function limitarMaterialesAlRegistro() {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  let amparados = null;
+  try {
+    amparados = materialesAmparados(await listarMiExpediente(sesion.usuario.id));
+  } catch (err) {
+    console.warn("No se pudo leer el expediente:", err);
+    return;
+  }
+  if (!amparados) return;
+
+  const select = document.getElementById("material");
+  let apagados = 0;
+
+  select?.querySelectorAll("option[value]").forEach((opcion) => {
+    if (!opcion.value || amparados.includes(opcion.value)) return;
+    opcion.disabled = true;
+    opcion.textContent = `${opcion.textContent} — no amparado por tu registro`;
+    apagados += 1;
+  });
+
+  if (apagados) {
+    const ayuda = select?.parentElement?.querySelector(".form-hint");
+    if (ayuda) {
+      ayuda.textContent =
+        "Solo puedes publicar los materiales que ampara tu registro de generador. " +
+        "Para publicar otro, actualízalo y súbelo a tu expediente.";
+    }
+  }
+}
+
+limitarMaterialesAlRegistro();
 
 llenarSelect("unidad", UNIDADES);
 llenarSelect("frecuencia", PERIODICIDADES, { vacio: "Selecciona una opción" });

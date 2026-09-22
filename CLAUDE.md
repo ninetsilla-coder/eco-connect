@@ -176,7 +176,7 @@ de Vercel; `.env.local` es solo para `vercel dev` si algún día se instala.
 
 | Rol | Se lee en pantalla como | Páginas |
 |---|---|---|
-| `proveedor` | Generador de residuos | `publicar-residuos`, `mis-residuos`, `gestion-ambiental` |
+| `proveedor` | Generador de residuos | `publicar-residuos`, `mis-residuos`, `manifiesto` |
 | `comprador` | Comprador industrial | `comprador-explorar-residuos`, `comprador-mis-intereses`, `comprador-servicios-transporte` (+ las dos de detalle) |
 | `logistica` | Transportista | `publicar-servicio-transporte`, `mis-servicios-transporte`, `transporte-responsable` |
 
@@ -191,6 +191,13 @@ fija `capa-datos.test.js`.
 Los links del dropdown se declaran una sola vez, en `ui/estructura.js`, marcados
 con `data-role`. `ui/navbar.js` muestra los del rol activo y oculta el resto, con
 el rol que `core/sesion.js` resolvió una única vez.
+
+**Lo que NO lleva `data-role` es deliberado.** "Mi expediente" vive junto a "Mi
+cuenta", fuera del dropdown: es de la empresa, no de un rol, y dentro del menú de
+residuos solo lo encontraban los generadores (2026-09-22).
+
+`gestion-ambiental` se borró ese mismo día: el expediente la sustituye (D-5). Ver
+`docs/plan-de-trabajo.md`, tarea 4, para qué pasó con sus módulos y su tabla.
 
 > ⚠️ **Este gating es solo visual.** `company_type` nunca se comprueba antes de
 > un `insert`/`update`/`delete`. La separación real de roles depende
@@ -601,6 +608,12 @@ Pendientes:
   prueba la ve fallar**, no cuando está escrita (§6 del CONTRATO-RLS).
 
   Mientras tanto, **no presentarlo como control de acceso en el pitch.**
+
+  Lo mismo vale para los **materiales que ampara cada autorización** (2026-09-22). Las
+  autorizaciones de la SMA son por residuo, así que el generador solo debería publicar
+  lo de su registro y el comprador solo recibir lo que cubre el suyo. Hoy eso son
+  opciones apagadas y un aviso; la base no lo comprueba. Se cierra con la misma
+  función que el estado, y por eso conviene hacer las dos de una vez.
 
 - **Cómo se sube la versión de `supabase-js`** (resuelto el 2026-09-18, pero el
   método vale para la próxima). Esta rama importaba `@2.39.7` mientras `main`

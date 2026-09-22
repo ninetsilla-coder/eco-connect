@@ -22,7 +22,7 @@
 // ==============================================================
 
 import { montarNavbar } from "../ui/navbar.js";
-import { OPERACION } from "../data/operacion-ejemplo.js";
+import { OPERACION, modalidadDestinatario } from "../data/operacion-ejemplo.js";
 
 montarNavbar();
 
@@ -132,8 +132,8 @@ function pintarFormato() {
 
   const seccion8 = seccion("8. Empresa destinataria", [
     ["Razón social", comprador.razonSocial],
-    ["Autorización SMA", comprador.autorizacion],
-    ["Modalidad", comprador.modalidad],
+    ["Autorización SMA", `${comprador.autorizacion} · ${comprador.tipoAutorizacion}`],
+    ["Modalidad", modalidadDestinatario()],
   ]);
   lineaFirma(seccion8, "comprador", "Firma de recepción en la entrega");
   contenedor.appendChild(seccion8);

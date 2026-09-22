@@ -51,10 +51,21 @@ img {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* La barra usa más ancho que el resto del sitio. El contenedor común
+   está en 1120px, y con logo + seis enlaces + los botones de sesión no
+   caben: `space-between` reparte lo que sobra, y cuando no sobra nada
+   los bloques se tocan. Se veía "EcoConnectCONÓCENOS". */
+.navbar .container {
+  max-width: 1320px;
+}
+
 .navbar-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Separación mínima garantizada: `space-between` da holgura solo si
+     sobra espacio, y esto no depende de que sobre. */
+  gap: 1.5rem;
   height: 64px;
 }
 
@@ -86,12 +97,19 @@ img {
   box-shadow: none;
 }
 
+/* "Mi expediente" es un enlace y "Mi cuenta" un span: sin esto, uno
+   salía subrayado y el otro no, y parecían cosas distintas. */
 .navbar-account {
   font-size: 0.85rem;
   font-weight: 600;
   color: #0F3D2E;
   white-space: nowrap;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.navbar-account:hover {
+  text-decoration: underline;
 }
 
 .logo-eco {
@@ -114,6 +132,12 @@ img {
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.08em;
+  /* "RESIDUOS ▾" se partía en dos renglones al apretarse la barra. */
+  white-space: nowrap;
+}
+
+.logo-text {
+  white-space: nowrap;
 }
 
 .nav-links a:hover {
@@ -1482,16 +1506,26 @@ a.btn-outline:hover,
   }
 }
 
-/* En laptop angosta caben los seis enlaces y los dos botones, pero
-   justo. Apretarlos un poco evita que la barra reviente antes de que
-   entre la hamburguesa a los 900px. */
-@media (max-width: 1150px) and (min-width: 901px) {
+/* Debajo del ancho máximo de la barra (1320px) el espacio deja de
+   sobrar: seis enlaces, el logo y tres controles de sesión. Se aprietan
+   un poco para que quepan sin tocarse, hasta que a los 900px entra la
+   hamburguesa y el problema desaparece.
+
+   El umbral se mide en la VENTANA, no en el contenedor, así que tiene
+   que ser el ancho a partir del cual el contenedor deja de crecer. Con
+   el valor anterior (1150px) esta regla no llegaba a aplicarse nunca en
+   pantallas grandes, que es justo donde se veía el problema. */
+@media (max-width: 1320px) and (min-width: 901px) {
   .nav-links {
     gap: 0.9rem;
   }
 
   .nav-links a {
     font-size: 0.82rem;
+  }
+
+  .navbar-content {
+    gap: 1rem;
   }
 }
 

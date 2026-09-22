@@ -170,8 +170,19 @@ devuelve el estado que quedó. Es la forma de cumplir C-2 sin esperar a la tarea
 Lo mismo con el veredicto de cada documento: `estado` y `motivo_rechazo` están fuera del
 permiso de escritura, porque RLS no filtra columnas (misma trampa que C-3).
 
-Por D-5, "Gestión ambiental" y "Transporte responsable" siguen en el menú. Cuando el
-expediente se use de verdad, leer C-5 antes de borrarlas.
+**D-5 aplicada el 2026-09-22: "Cumple con gestión ambiental" ya no existe.** Se borraron
+`public/gestion-ambiental.html` y su módulo de página. La contradicción C-5 se resolvió así:
+
+- `data/cumplimiento.js` y `ui/documentos.js` **no quedaron huérfanos**: los sigue usando
+  "Transporte responsable", y `mis-residuos` sigue leyendo la gestión ya guardada.
+- De `cumplimiento.js` se quitó solo la función que **escribía** gestión ambiental, que ya no
+  llamaba nadie. La tabla queda de **solo lectura desde la aplicación**: lo subido se sigue
+  viendo, no se crean filas nuevas.
+- La tabla, su bucket y sus políticas **no se tocan**. Los datos siguen ahí hasta que se
+  decida qué hacer con ellos.
+
+**"Transporte responsable" se queda** hasta que el bloque del transportista en el expediente
+esté terminado.
 
 **Lo que no hace:** no lleva al expediente automáticamente tras registrarse (se entra por el
 menú), no hay panel del equipo, y el estado no bloquea todavía publicar ni contactar — eso
@@ -179,11 +190,47 @@ es la tarea 5.
 
 ---
 
-#### Ajustes al diseño, pendientes de construir (2026-09-22)
+#### Ajustes del Reglamento de la Ley de Residuos de Coahuila
 
-Salen de leer el **Reglamento de la Ley de Residuos de Coahuila**. La tarea 4 está
-construida como se describe arriba; **esto no lo está**. Se anota aquí para que el
-expediente y lo que cuelga de él se corrijan con el reglamento delante y no de memoria.
+Anotados el 2026-09-22 y **construidos ese mismo día**, salvo el punto 7. Lo que sigue
+describe qué se hizo con cada uno.
+
+| # | Ajuste | Estado |
+|---|---|---|
+| 1 | Materiales que ampara cada autorización | ✅ casillas y avisos; el bloqueo real, pendiente |
+| 2 | El padrón no trae materiales: se revisan en el PDF | ✅ textos de ayuda corregidos |
+| 3 | Tres tipos de autorización del comprador | ✅ |
+| 4 | Vigencias distintas y "actualización pendiente" | ✅ |
+| 5 | Registro del plan de manejo, obligatorio | ✅ |
+| 6 | La modalidad del manifiesto sale del tipo de autorización | ✅ |
+| 7 | Avisar al generador de un comprador nuevo | ⏳ bloque 3 |
+
+#### Segunda pasada del expediente (2026-09-22, misma tarde)
+
+- **Dos niveles.** Arriba, *Documentos de la empresa* (datos generales e impacto ambiental):
+  se llenan una vez y valen para cualquier rol, así que ya no dicen "documentos que pedimos
+  a un generador". Abajo, *Autorizaciones*, y al final los recomendados.
+- **Varios registros por autorización.** La SMA autoriza **por establecimiento**: una empresa
+  con tres plantas tiene tres registros, cada uno con su oficio, su PDF y **sus** materiales.
+  Botón "+ Agregar otro registro" en los tres documentos de autorización. Los materiales de
+  la empresa son la **suma** de todos.
+  - En Supabase bastó **cambiar una regla**: el índice único pasó a ser parcial y excluye a
+    las tres autorizaciones. Ni tabla nueva, ni políticas nuevas, ni bucket nuevo.
+  - En el código, la identidad de un documento deja de ser su tipo y pasa a ser **su fila**:
+    con dos registros de generador, el tipo ya no distingue uno del otro.
+  - Basta **un** registro entregado para que el documento cuente. Exigir los dos bloquearía a
+    quien está dando de alta la segunda planta.
+  - El plan de manejo **no** se repite, aunque viva en el bloque del registro: no es una
+    autorización de la SMA. Lo destapó una prueba al pedir lo contrario. **Si resulta que el
+    plan también es por establecimiento, es una línea.**
+- **Los textos de ayuda son instrucciones para la empresa**, no apuntes del revisor. "Marca
+  los materiales que aparecen en tu autorización", no "se coteja contra el padrón". Lo
+  segundo vive ahora en comentarios del código: en pantalla no le dice a nadie qué hacer y
+  además promete una revisión que el usuario no controla.
+- **"Mi expediente" salió del menú Residuos** y está junto a "Mi cuenta": es de la empresa, no
+  de un rol, y ahí lo encuentran los tres.
+- **"Manifiesto (ejemplo)" y "Pago de una operación (ejemplo)"** se llaman ya sin el paréntesis:
+  el aviso de que son demostraciones está dentro de cada página, que es donde se lee.
 
 **1. Las autorizaciones de la SMA son por residuo, no generales.**
 Cada autorización del expediente necesita un campo **"Materiales que ampara"**: casillas con
@@ -198,6 +245,16 @@ los diez materiales del catálogo. De ahí salen tres reglas:
 En el prototipo, **casillas y aviso en pantalla**. El bloqueo real va con la inversión, junto
 con lo de D-15: es la misma pieza —comprobar en la base, no en el navegador— y conviene
 hacerlas de una vez.
+
+*Construido así:* columna `materiales` en `expediente_documentos`; las casillas en las tres
+autorizaciones; en publicar residuos, los materiales no amparados salen apagados y dicen por
+qué; en el detalle de un residuo, el comprador ve el aviso antes de escribirle a nadie. El
+transportista queda fuera porque **todavía no hay solicitudes** que filtrar (tarea 11).
+
+Una decisión que sostiene todo lo demás: **una empresa que aún no declaró materiales no está
+"autorizada para nada"**. Sin datos no se bloquea nada. Tratarlo al revés dejaría el sitio
+inservible para todas las cuentas anteriores a hoy, y es el tipo de regla que parece
+prudente y en realidad apaga el producto.
 
 **2. El padrón público no sirve para cotejar materiales.** Trae nombre, dirección, contacto y
 vigencia, y nada más. Los materiales autorizados solo aparecen en el PDF de la autorización,

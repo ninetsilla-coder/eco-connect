@@ -48,28 +48,15 @@ export function agruparPorResiduo(filas) {
   return mapa;
 }
 
-export async function registrarGestion(usuarioId, { residuoId, tipo, descripcion }, archivos) {
-  // Se guardan RUTAS, no URLs: el bucket pasará a privado y las URLs
-  // públicas dejarían de resolver. referenciar() las firma al pintar.
-  const fotos = archivos?.length
-    ? await subirArchivos(BUCKET_GESTION, usuarioId, archivos, { subcarpeta: `${residuoId}/${tipo}` })
-    : null;
-
-  const { data, error } = await supabaseClient
-    .from("residuos_gestion_ambiental")
-    .insert({
-      user_id: usuarioId,
-      residuo_id: residuoId,
-      tipo,
-      descripcion: descripcion || null,
-      fotos: fotos?.length ? fotos : null,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
+// La escritura de gestión ambiental se fue con su página el
+// 2026-09-22 (decisión D-5): el expediente la sustituye, porque pedía
+// los mismos papeles a todos los roles en vez de los de cada uno.
+//
+// La tabla queda de SOLO LECTURA desde la aplicación: lo que ya se
+// subió se sigue viendo en "Mis residuos", pero no se crean filas
+// nuevas. Sus políticas de escritura siguen en politicas.sql §8 a
+// propósito —los datos y el bucket no se tocan— y ahí seguirán hasta
+// que se decida qué hacer con lo guardado.
 
 // ==============================================================
 // Cumplimiento de transporte (logística)

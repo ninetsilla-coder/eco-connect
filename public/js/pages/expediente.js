@@ -9,10 +9,11 @@
 import { montarNavbar } from "../ui/navbar.js";
 import { requiereSesion, invalidarSesion } from "../core/sesion.js";
 import {
-  bloquesDeRol, listarMiExpediente, guardarDocumento, urlDeDocumento,
-  enviarARevision, faltantes, puedeEnviarse, documentosDeRol, CAMPOS,
+  nivelesDeRol, listarMiExpediente, guardarDocumento, urlDeDocumento,
+  enviarARevision, faltantes, puedeEnviarse, documentosDeRol,
+  filasDe, admiteVarios, CAMPOS,
 } from "../data/expediente.js";
-import { etiquetaRol } from "../data/perfiles.js";
+import { MATERIALES } from "../data/materiales.js";
 import { infoEstado } from "../ui/estado-cuenta.js";
 
 montarNavbar();
@@ -23,6 +24,18 @@ const cajaEnvio = document.getElementById("envio");
 const listaFaltantes = document.getElementById("envio-faltantes");
 const botonEnviar = document.getElementById("btn-enviar");
 const estadoEnvio = document.getElementById("status-envio");
+
+// Cada bloque dice para qué sirve, en términos de la empresa. Los de
+// arriba son de la empresa entera —los mismos para cualquier rol—, así
+// que no pueden decir "documentos que pedimos a un generador".
+const SUBTITULOS = {
+  "Datos generales": "Los pide cualquier empresa, sea cual sea su rol. Se llenan una sola vez.",
+  "Impacto ambiental": "Los pide cualquier empresa que genere o reciba residuos. Se llenan una sola vez.",
+  "Registro de generador": "Tu registro ante la SMA y el plan de manejo de tus residuos.",
+  "Autorización SMA": "La autorización que te permite recibir residuos de manejo especial.",
+  "Autorización de transporte": "Tu autorización de recolección y transporte, y los vehículos que la amparan.",
+  "Recomendados": "No son obligatorios. Completarlos te da la insignia de expediente completo.",
+};
 
 function mostrarEstado(elemento, texto, clase = "") {
   if (!elemento) return;
@@ -43,10 +56,59 @@ function pintarEstadoCuenta(perfil) {
 // Un documento
 // --------------------------------------------------------------
 
-function crearCampo(doc, clave, guardado) {
+// Las casillas de "materiales que ampara". Ocupan el ancho completo:
+// son diez y no caben en una columna de la rejilla.
+function crearCampoMateriales(doc, guardado) {
+  const envoltorio = document.createElement("fieldset");
+  envoltorio.className = "campo-materiales";
+  envoltorio.style.gridColumn = "1 / -1";
+
+  const titulo = document.createElement("legend");
+  titulo.textContent = "Materiales que ampara";
+  envoltorio.appendChild(titulo);
+
+  const ayuda = document.createElement("small");
+  ayuda.className = "form-hint";
+  ayuda.textContent =
+    "Las autorizaciones de la SMA son por residuo: marca solo los que aparecen en el documento.";
+  envoltorio.appendChild(ayuda);
+
+  const rejilla = document.createElement("div");
+  rejilla.className = "materiales-rejilla";
+
+  const marcados = new Set(guardado?.materiales ?? []);
+
+  MATERIALES.forEach((material) => {
+    const etiqueta = document.createElement("label");
+    etiqueta.className = "material-opcion";
+
+    const casilla = document.createElement("input");
+    casilla.type = "checkbox";
+    casilla.className = "material-casilla";
+    casilla.value = material.id;
+    casilla.checked = marcados.has(material.id);
+    casilla.dataset.campoMaterial = doc.id;
+
+    const texto = document.createElement("span");
+    texto.textContent = material.nombre;
+
+    etiqueta.append(casilla, texto);
+    rejilla.appendChild(etiqueta);
+  });
+
+  envoltorio.appendChild(rejilla);
+  return envoltorio;
+}
+
+// `sufijo` distingue los controles de un registro de los del siguiente:
+// con dos registros de generador en la misma página, dos campos con el
+// mismo id harían que la etiqueta apuntara siempre al primero.
+function crearCampo(doc, clave, guardado, sufijo) {
+  if (clave === CAMPOS.MATERIALES) return crearCampoMateriales(doc, guardado);
+
   const envoltorio = document.createElement("div");
   const etiqueta = document.createElement("label");
-  const id = `${doc.id}-${clave}`;
+  const id = `${doc.id}-${sufijo}-${clave}`;
   etiqueta.setAttribute("for", id);
 
   let control;
@@ -93,24 +155,32 @@ function crearEtiqueta(texto, clase) {
   return span;
 }
 
-function crearDocumento(doc, guardado, alGuardar) {
+// Un REGISTRO de un documento. Los de la empresa tienen uno; las
+// autorizaciones, uno por establecimiento. `clave` identifica el nodo
+// para poder repintar solo este registro al guardarlo, sin tocar lo que
+// el usuario esté escribiendo en los demás.
+function crearDocumento(doc, guardado, alGuardar, indice = null, clave = null) {
   const caja = document.createElement("div");
   caja.className = "documento";
-  // Marca para poder repintar SOLO este documento al guardarlo, sin
-  // tocar lo que el usuario esté escribiendo en los demás.
-  caja.dataset.tipo = doc.id;
+  caja.dataset.registro = clave ?? guardado?.id ?? doc.id;
 
   // ---------- Cabecera: nombre, si es obligatorio y su veredicto ----------
   const cabecera = document.createElement("div");
   cabecera.className = "documento-cabecera";
 
   const titulo = document.createElement("h3");
-  titulo.textContent = doc.nombre;
+  // Con varios registros, el nombre del documento ya lo dice el bloque:
+  // aquí toca distinguir de qué establecimiento es cada uno.
+  titulo.textContent = admiteVarios(doc) && indice !== null
+    ? `Registro ${indice + 1}`
+    : doc.nombre;
   cabecera.appendChild(titulo);
 
-  cabecera.appendChild(doc.obligatorio
-    ? crearEtiqueta("Obligatorio", "etiqueta-obligatorio")
-    : crearEtiqueta("Recomendado", "etiqueta-opcional"));
+  if (!admiteVarios(doc) || indice === 0) {
+    cabecera.appendChild(doc.obligatorio
+      ? crearEtiqueta("Obligatorio", "etiqueta-obligatorio")
+      : crearEtiqueta("Recomendado", "etiqueta-opcional"));
+  }
 
   if (guardado?.estado) {
     const estados = {
@@ -141,19 +211,20 @@ function crearDocumento(doc, guardado, alGuardar) {
   }
 
   // ---------- Campos ----------
+  const sufijo = caja.dataset.registro;
   const campos = document.createElement("div");
   campos.className = "documento-campos";
-  doc.campos.forEach((clave) => campos.appendChild(crearCampo(doc, clave, guardado)));
+  doc.campos.forEach((c) => campos.appendChild(crearCampo(doc, c, guardado, sufijo)));
 
   let entradaArchivo = null;
   if (!doc.sinArchivo) {
     const envoltorio = document.createElement("div");
     const etiqueta = document.createElement("label");
-    etiqueta.setAttribute("for", `${doc.id}-archivo`);
+    etiqueta.setAttribute("for", `${doc.id}-${sufijo}-archivo`);
     etiqueta.textContent = guardado?.archivo_ruta ? "Reemplazar PDF" : "Archivo PDF";
     entradaArchivo = document.createElement("input");
     entradaArchivo.type = "file";
-    entradaArchivo.id = `${doc.id}-archivo`;
+    entradaArchivo.id = `${doc.id}-${sufijo}-archivo`;
     entradaArchivo.accept = ".pdf,image/*";
     envoltorio.append(etiqueta, entradaArchivo);
     campos.appendChild(envoltorio);
@@ -205,6 +276,10 @@ function crearDocumento(doc, guardado, alGuardar) {
       valores[control.dataset.campo] = control.value.trim();
     });
 
+    valores.materiales = [...campos.querySelectorAll(".material-casilla")]
+      .filter((casilla) => casilla.checked)
+      .map((casilla) => casilla.value);
+
     const archivo = entradaArchivo?.files?.[0] ?? null;
 
     // Un documento sin archivo y sin nada escrito no es un documento.
@@ -220,11 +295,19 @@ function crearDocumento(doc, guardado, alGuardar) {
       boton.disabled = false;
       return;
     }
+    // Una autorización sin materiales no sirve para nada: es justo el
+    // dato que decide qué puede publicar o comprar esta empresa.
+    if (doc.campos.includes(CAMPOS.MATERIALES) && !valores.materiales.length) {
+      estado.className = "documento-estado error";
+      estado.textContent = "Marca al menos un material de los que ampara el documento.";
+      boton.disabled = false;
+      return;
+    }
 
     try {
-      // El mensaje de éxito lo pone alGuardar sobre el documento ya
+      // El mensaje de éxito lo pone alGuardar sobre el registro ya
       // repintado: este nodo deja de estar en la página.
-      await alGuardar(doc, valores, archivo);
+      await alGuardar(doc, valores, archivo, guardado?.id ?? null, caja.dataset.registro);
     } catch (err) {
       console.error("Error guardando el documento:", err);
       estado.className = "documento-estado error";
@@ -296,31 +379,88 @@ async function iniciar() {
 
   mostrarEstado(estadoPagina, "");
 
+  // Contador para dar clave a los registros que todavía no existen en
+  // la base. Un registro nuevo no tiene id hasta que se guarda.
+  let nuevos = 0;
+
+  // Todos los registros de un documento. Sin ninguno guardado se pinta
+  // uno vacío: si no, un documento nuevo no tendría dónde escribirse.
+  function crearDocumentoConRegistros(doc) {
+    const caja = document.createElement("div");
+    caja.className = "documento-grupo";
+    caja.dataset.documento = doc.id;
+
+    const filas = filasDe(guardados, doc.id);
+    const lista = document.createElement("div");
+
+    if (filas.length) {
+      filas.forEach((fila, indice) => {
+        lista.appendChild(crearDocumento(doc, fila, alGuardar, indice, fila.id));
+      });
+    } else {
+      lista.appendChild(crearDocumento(doc, null, alGuardar, 0, `nuevo-${nuevos++}`));
+    }
+
+    caja.appendChild(lista);
+
+    // La SMA autoriza por establecimiento: una empresa con tres plantas
+    // tiene tres registros, cada uno con sus materiales.
+    if (admiteVarios(doc)) {
+      const agregar = document.createElement("button");
+      agregar.type = "button";
+      agregar.className = "btn-secondary btn-agregar-registro";
+      agregar.textContent = "+ Agregar otro registro";
+      agregar.addEventListener("click", () => {
+        const indice = lista.querySelectorAll(".documento").length;
+        lista.appendChild(
+          crearDocumento(doc, null, alGuardar, indice, `nuevo-${nuevos++}`),
+        );
+      });
+      caja.appendChild(agregar);
+    }
+
+    return caja;
+  }
+
   function repintar() {
     if (!contenedorBloques) return;
     contenedorBloques.textContent = "";
-    const porTipo = new Map(guardados.map((g) => [g.tipo_documento, g]));
 
-    bloquesDeRol(rol).forEach((bloque) => {
-      const caja = document.createElement("section");
-      caja.className = "bloque";
+    nivelesDeRol(rol).forEach((nivel) => {
+      const seccion = document.createElement("section");
+      seccion.className = "nivel";
 
       const titulo = document.createElement("h2");
-      titulo.textContent = bloque.nombre;
-      caja.appendChild(titulo);
+      titulo.className = "nivel-titulo";
+      titulo.textContent = nivel.titulo;
 
-      const sub = document.createElement("p");
-      sub.className = "bloque-sub";
-      sub.textContent = bloque.nombre === "Recomendados"
-        ? `No son obligatorios. Completarlos te da la insignia de expediente completo.`
-        : `Documentos que EcoConnect pide a ${etiquetaRol(rol)}.`;
-      caja.appendChild(sub);
+      const descripcion = document.createElement("p");
+      descripcion.className = "nivel-sub";
+      descripcion.textContent = nivel.descripcion;
 
-      bloque.documentos.forEach((doc) => {
-        caja.appendChild(crearDocumento(doc, porTipo.get(doc.id), alGuardar));
+      seccion.append(titulo, descripcion);
+
+      nivel.bloques.forEach((bloque) => {
+        const caja = document.createElement("div");
+        caja.className = "bloque";
+
+        const nombre = document.createElement("h3");
+        nombre.textContent = bloque.nombre;
+        caja.appendChild(nombre);
+
+        const sub = document.createElement("p");
+        sub.className = "bloque-sub";
+        sub.textContent = SUBTITULOS[bloque.nombre] ?? "";
+        caja.appendChild(sub);
+
+        bloque.documentos.forEach((doc) => {
+          caja.appendChild(crearDocumentoConRegistros(doc));
+        });
+
+        seccion.appendChild(caja);
       });
 
-      contenedorBloques.appendChild(caja);
+      contenedorBloques.appendChild(seccion);
     });
 
     pintarFaltantes(rol, guardados);
@@ -328,21 +468,22 @@ async function iniciar() {
     if (botonEnviar) botonEnviar.disabled = !puedeEnviarse(rol, guardados);
   }
 
-  async function alGuardar(doc, valores, archivo) {
-    const fila = await guardarDocumento(sesion.usuario.id, doc, valores, archivo);
-    guardados = guardados.filter((g) => g.tipo_documento !== doc.id).concat(fila);
+  async function alGuardar(doc, valores, archivo, filaId, clave) {
+    const fila = await guardarDocumento(sesion.usuario.id, doc, valores, archivo, filaId);
+    guardados = guardados.filter((g) => g.id !== fila.id).concat(fila);
 
     pintarFaltantes(rol, guardados);
     if (botonEnviar) botonEnviar.disabled = !puedeEnviarse(rol, guardados);
 
-    // Se repinta SOLO este documento, no la página entera: así aparecen
+    // Se repinta SOLO este registro, no la página entera: así aparecen
     // al momento su etiqueta de estado y el enlace al archivo, sin
-    // borrar lo que el usuario esté escribiendo en otro bloque. Antes
+    // borrar lo que el usuario esté escribiendo en otro registro. Antes
     // había que recargar para verlo, y guardar parecía no hacer nada.
-    const anterior = contenedorBloques?.querySelector(`[data-tipo="${doc.id}"]`);
+    const anterior = contenedorBloques?.querySelector(`[data-registro="${clave}"]`);
     if (!anterior) return;
 
-    const nuevo = crearDocumento(doc, fila, alGuardar);
+    const indice = [...anterior.parentElement.children].indexOf(anterior);
+    const nuevo = crearDocumento(doc, fila, alGuardar, indice, fila.id);
     const aviso = nuevo.querySelector(".documento-estado");
     if (aviso) {
       aviso.className = "documento-estado success";

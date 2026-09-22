@@ -32,9 +32,22 @@ describe("quién puede operar", () => {
   test("solo una cuenta verificada", () => {
     assert.equal(puedeOperar("verificado"), true);
 
-    ["pendiente", "en_revision", "rechazado", "vencido"].forEach((estado) => {
-      assert.equal(puedeOperar(estado), false, estado);
-    });
+    ["pendiente", "en_revision", "rechazado", "vencido", "actualizacion_pendiente"]
+      .forEach((estado) => {
+        assert.equal(puedeOperar(estado), false, estado);
+      });
+  });
+
+  // El registro de generador no vence: se actualiza cada tres años. A
+  // un generador no se le puede decir que perdió un permiso que sigue
+  // teniendo, así que tiene su propio estado.
+  test("un generador no vence, tiene actualización pendiente", () => {
+    assert.match(infoEstado("actualizacion_pendiente").titulo, /Actualización/);
+    assert.match(infoEstado("actualizacion_pendiente").detalle, /tres años/);
+    assert.notEqual(
+      infoEstado("actualizacion_pendiente").titulo,
+      infoEstado("vencido").titulo,
+    );
   });
 
   // El caso que más fácil se cuela: una cuenta anterior al 2026-09-22

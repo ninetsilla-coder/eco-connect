@@ -30,8 +30,12 @@ export const OPERACION = Object.freeze({
     razonSocial: "Recicladora Laguna Verde S.A. de C.V.",
     rfc: "RLV230920XY1",
     municipio: "Torreón, Coahuila",
-    autorizacion: "SMA-AC-2025-0317",
-    modalidad: "Almacenamiento",
+    autorizacion: "SMA-RC-2025-0317",
+    // La modalidad del manifiesto sale del TIPO de autorización que
+    // tenga el destinatario, no es siempre "Almacenamiento": una
+    // recicladora recibe para reciclar. Es un supuesto —no se encontró
+    // el formato oficial— y está anotado como tal en el maestro §20.
+    tipoAutorizacion: "Reciclado y/o co-procesamiento",
   }),
 
   transportista: Object.freeze({
@@ -74,6 +78,17 @@ export function desglose(comision, operacion = OPERACION) {
     comision: importeComision,
     total: lote + operacion.flete + importeComision,
   };
+}
+
+// La modalidad que se anota en la sección 8 del manifiesto. Sale del
+// tipo de autorización del destinatario: acopio → Almacenamiento,
+// reciclado → Reciclaje, tratamiento → Tratamiento.
+export function modalidadDestinatario(operacion = OPERACION) {
+  const tipo = operacion.comprador.tipoAutorizacion ?? "";
+  if (tipo.startsWith("Acopio")) return "Almacenamiento";
+  if (tipo.startsWith("Reciclado")) return "Reciclaje";
+  if (tipo.startsWith("Tratamiento")) return "Tratamiento";
+  return "—";
 }
 
 // SIMULADO: la CLABE real la devuelve Stripe al crear el cobro

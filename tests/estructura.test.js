@@ -52,11 +52,12 @@ describe("el markup no vuelve a los HTML", () => {
 
   // El número no es decoración: si una página desaparece sin querer,
   // las demás comprobaciones de este archivo la dejan de vigilar en
-  // silencio y nadie se entera. 13 → 14 con `expediente.html`, y → 16
-  // con `pago.html` y `manifiesto.html` (2026-09-22). Cambiarlo es
-  // deliberado, nunca un efecto secundario.
-  test("las 16 páginas siguen existiendo", () => {
-    assert.equal(PAGINAS.length, 16);
+  // silencio y nadie se entera. 13 → 14 con `expediente.html`, → 16 con
+  // `pago.html` y `manifiesto.html`, y → 15 al borrar
+  // `gestion-ambiental.html`, que el expediente sustituye (D-5). Todo
+  // el 2026-09-22. Cambiarlo es deliberado, nunca un efecto secundario.
+  test("las 15 páginas siguen existiendo", () => {
+    assert.equal(PAGINAS.length, 15);
   });
 
   // Antes el header estaba escrito en el HTML, así que una página que
