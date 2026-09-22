@@ -71,6 +71,7 @@ export const HEADER = `
             <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
             <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
             <a href="expediente.html" data-role="proveedor">Mi expediente</a>
+            <a href="manifiesto.html" data-role="proveedor">Manifiesto (ejemplo)</a>
 
             <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
             <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
@@ -81,6 +82,7 @@ export const HEADER = `
             <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
             <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
             <a href="expediente.html" data-role="comprador">Mi expediente</a>
+            <a href="pago.html" data-role="comprador">Pago de una operación (ejemplo)</a>
           </div>
         </div>
 

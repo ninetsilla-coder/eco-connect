@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eco Connect | Manifiesto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fuentes: Anton (títulos) y Poppins (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos globales -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Estilos específicos de esta página -->
+  <style>
+    .page-hero {
+      max-width: 880px;
+      margin: 40px auto 8px;
+      padding: 0 16px;
+    }
+
+    .page-hero h1 { font-size: 2rem; margin-bottom: 8px; }
+    .page-hero p  { color: #4b5563; font-size: 0.98rem; }
+
+    .manifiesto-layout {
+      max-width: 880px;
+      margin: 0 auto 48px;
+      padding: 0 16px;
+    }
+
+    .tarjeta {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-top: 18px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+    }
+
+    .tarjeta h2 { font-size: 1.05rem; margin-bottom: 10px; }
+
+    /* La vista previa imita el formato oficial: secciones numeradas y
+       tipografía de documento, para que se reconozca de un vistazo. */
+    .formato {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .formato-encabezado {
+      background: #f1f5f9;
+      padding: 12px 16px;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .formato-encabezado h3 { font-size: 0.95rem; }
+    .formato-encabezado p  { font-size: 0.8rem; color: #475569; }
+
+    .seccion {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .seccion:last-child { border-bottom: none; }
+
+    .seccion-titulo {
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+
+    .campos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 6px 18px;
+    }
+
+    .campo-etiqueta { font-size: 0.74rem; color: #64748b; }
+    .campo-valor    { font-size: 0.9rem; }
+
+    .firma-linea {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed #94a3b8;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+
+    .firma-hecha { color: #166534; border-top-color: #16a34a; }
+
+    @media (max-width: 640px) {
+      .page-hero h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <main>
+    <section class="page-hero">
+      <h1>Manifiesto de la operación</h1>
+      <p id="manifiesto-resumen">Cargando...</p>
+    </section>
+
+    <section class="manifiesto-layout">
+      <div class="tarjeta">
+        <h2>Folio autorizado por la SMA</h2>
+        <p class="form-hint">
+          EcoConnect no genera folios: cada generador los tramita ante la Secretaría y captura
+          aquí el que le corresponde a este embarque.
+        </p>
+        <div class="campo-compuesto" style="margin-top: 8px; display: flex; gap: 8px;">
+          <input type="text" id="folio" placeholder="Ej. SMA-MG-2026-004512" style="flex: 1 1 auto;" />
+          <button type="button" id="btn-folio" class="btn btn-primary">Guardar folio</button>
+        </div>
+        <p class="form-status" id="estado-folio" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Vista previa del manifiesto</h2>
+        <div class="formato" id="formato"></div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Firmas</h2>
+        <p class="form-hint">
+          El original impreso y sellado viaja con el material, como exige la norma. En paralelo
+          cada parte firma en doc2sign, lo que da seguimiento en tiempo real.
+        </p>
+        <div id="firmas"></div>
+        <p class="form-status" id="estado-firmas" role="status" aria-live="polite"></p>
+      </div>
+
+      <p class="section-note" id="aviso-simulacion"></p>
+    </section>
+  </main>
+
+  <script type="module" src="js/pages/manifiesto.js"></script>
+</body>
+</html>

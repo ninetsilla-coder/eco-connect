@@ -108,7 +108,7 @@ Construcción ya no es una industria foco. Se menciona solo como ejemplo de gene
 | Capa | Cómo funciona |
 |---|---|
 | 1. Catálogo cerrado | Al publicar, el generador solo puede elegir materiales del catálogo. Lo que no está en el catálogo no se puede publicar. |
-| 2. Lista explícita | Los términos y condiciones prohíben aceites y lubricantes usados, solventes, pinturas, baterías, lodos industriales, residuos médicos, y envases o materiales que hayan contenido o estén impregnados de sustancias peligrosas. |
+| 2. Lista explícita | Los términos y condiciones prohíben aceites y lubricantes usados, solventes, pinturas, baterías, lodos industriales, residuos médicos, residuos metalúrgicos provenientes de procesos de fundición, y envases o materiales que hayan contenido o estén impregnados de sustancias peligrosas. |
 | 3. Declaración del generador | Al publicar marca: "Declaro que este material no es un residuo peligroso y no está contaminado con sustancias peligrosas." Si se comprueba lo contrario, se da de baja la publicación y se puede suspender la cuenta. |
 
 La tercera capa cubre el caso más delicado: materiales permitidos que se contaminan, como un tambo de HDPE que contuvo químicos o viruta metálica con aceite de corte.
@@ -153,7 +153,7 @@ En Coahuila, los residuos industriales no peligrosos son de manejo especial y lo
 | Perfil | Obligatorio | Recomendado (insignia) |
 |---|---|---|
 | Todos | Constancia de Situación Fiscal, identificación del representante legal | Acta constitutiva, opinión de cumplimiento del SAT |
-| Generador | Autorización de impacto ambiental; número de registro como generador de residuos de manejo especial | Caracterización de laboratorio que demuestre que el material no es peligroso |
+| Generador | Autorización de impacto ambiental; número de registro como generador de residuos de manejo especial; registro del plan de manejo | Caracterización de laboratorio que demuestre que el material no es peligroso |
 | Comprador | Autorización de impacto ambiental; autorización SMA de acopio, reciclaje o co-procesamiento, o tratamiento | Certificaciones ambientales (ISO 14001, Industria Limpia) |
 | Transportista | Autorización de recolección y transporte en Coahuila, vehículos registrados, verificación vehicular y seguro | Permiso federal de autotransporte |
 
@@ -454,8 +454,10 @@ Basados en investigación documental; se validan durante la fase 1.
 | Firma electrónica | Se desconoce si la SMA acepta firma electrónica en el manifiesto; por eso se usa el modelo híbrido. |
 | Folios | Cada generador tramita sus folios autorizados ante la SMA; EcoConnect no los genera. |
 | Autorización del comprador | Un comprador que usa el material como materia prima directa necesita al menos una autorización de acopio, reciclaje o co-procesamiento, o tratamiento. |
-| Umbral de registro | En Coahuila deben registrarse como generadores quienes generan más de 10 toneladas al año de residuos de manejo especial (dato de la consultora). En la fase 1 solo entran generadores con registro estatal. |
-| Vigencia | Las autorizaciones duran dos años y se refrendan (dato de la consultora). |
+| Umbral de registro | En Coahuila deben registrarse como generadores quienes generan 10 toneladas o más al año de residuos de manejo especial (dato de la consultora). En la fase 1 solo entran generadores con registro estatal. |
+| Vigencia | Las autorizaciones de transporte, acopio, reciclado y tratamiento duran dos años y se refrendan. El registro de generador **no vence**: se actualiza cada tres años. |
+| Modalidad del manifiesto | La modalidad que se anota para la empresa destinataria sale del tipo de autorización que tenga (acopio, reciclado o tratamiento), no es siempre "Almacenamiento". No se encontró el formato oficial para confirmarlo. |
+| Cambio de comprador | Se asume que el generador debe registrar a cada empresa destinataria nueva en la actualización de su registro y de su plan de manejo. Por eso la plataforma se lo avisará y le dará la lista de empresas con las que operó. |
 | Padrón de impacto ambiental | No se encontró un padrón público; por eso ese documento solo se pre-verifica. |
 | Stripe | Tarifa oficial de $7 + IVA por transferencia en México. Falta confirmar si Connect tiene cargos adicionales por cuenta conectada. |
 | doc2sign | Falta confirmar si las firmas cuentan por documento o por firmante, y si los paquetes caducan. |

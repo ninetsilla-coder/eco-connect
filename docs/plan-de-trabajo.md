@@ -150,7 +150,7 @@ hacen falta de verdad para el manifiesto (tarea 10), así que hay que capturarla
 
 No se empieza hasta cerrar el bloque 1 (D-1).
 
-### 4. [x] Pantalla de expediente por rol (§2) — código listo el 2026-09-22, pendiente de aplicar en Supabase
+### 4. [x] Pantalla de expediente por rol (§2) — hecha el 2026-09-22 · ⚠️ con ajustes pendientes al final
 
 | | |
 |---|---|
@@ -176,6 +176,61 @@ expediente se use de verdad, leer C-5 antes de borrarlas.
 **Lo que no hace:** no lleva al expediente automáticamente tras registrarse (se entra por el
 menú), no hay panel del equipo, y el estado no bloquea todavía publicar ni contactar — eso
 es la tarea 5.
+
+---
+
+#### Ajustes al diseño, pendientes de construir (2026-09-22)
+
+Salen de leer el **Reglamento de la Ley de Residuos de Coahuila**. La tarea 4 está
+construida como se describe arriba; **esto no lo está**. Se anota aquí para que el
+expediente y lo que cuelga de él se corrijan con el reglamento delante y no de memoria.
+
+**1. Las autorizaciones de la SMA son por residuo, no generales.**
+Cada autorización del expediente necesita un campo **"Materiales que ampara"**: casillas con
+los diez materiales del catálogo. De ahí salen tres reglas:
+
+| Quién | Regla |
+|---|---|
+| Generador | Solo publica materiales que estén en su registro |
+| Comprador | Solo solicita materiales que su autorización cubra. Si no: *"Tu autorización no ampara este material"* |
+| Transportista | Solo ve solicitudes de materiales que cubre |
+
+En el prototipo, **casillas y aviso en pantalla**. El bloqueo real va con la inversión, junto
+con lo de D-15: es la misma pieza —comprobar en la base, no en el navegador— y conviene
+hacerlas de una vez.
+
+**2. El padrón público no sirve para cotejar materiales.** Trae nombre, dirección, contacto y
+vigencia, y nada más. Los materiales autorizados solo aparecen en el PDF de la autorización,
+así que esa parte de la revisión es **lectura humana del documento**, no cotejo contra el
+padrón. Cambia lo que promete el texto de ayuda de esos documentos.
+
+**3. El comprador puede tener tres tipos de autorización**, y las tres existen en la SMA:
+acopio y/o almacenamiento, reciclado y/o co-procesamiento, o tratamiento. La lista de
+subtipos del expediente hay que ajustarla a esa redacción.
+
+**4. Las vigencias no son todas iguales.**
+
+| Documento | Regla |
+|---|---|
+| Transporte, acopio, reciclado, tratamiento | Vencen a los **2 años** y se refrendan |
+| Registro de generador | **No vence**: se actualiza cada **3 años** |
+
+Consecuencia para la pantalla: para un generador, el estado no es "vencido" sino
+**"actualización pendiente"**. Toca `ui/estado-cuenta.js`, donde hoy solo hay un `vencido`
+para todos.
+
+**5. Un documento obligatorio más para el generador: el registro del plan de manejo.** En la
+fase 1 solo entran grandes generadores, así que no es opcional para nadie del catálogo.
+
+**6. La modalidad del destinatario en el manifiesto sale del tipo de autorización del
+comprador**, no es siempre "Almacenamiento" como está hoy en la pantalla de ejemplo. Es un
+**supuesto**: no se encontró el formato oficial para confirmarlo (documento maestro §20).
+
+**7. Idea para el bloque 3.** Cuando un generador vende a un comprador con el que no había
+operado, avisarle de que **debe registrar a esa empresa** en la actualización de su registro
+y de su plan de manejo, y darle la lista de empresas con las que ha operado. Es trabajo que
+hoy nadie lleva, sale gratis de la bitácora que ya habrá que construir (tarea 13), y es
+justo el tipo de cosa por la que una empresa se queda en la plataforma.
 
 ### 5. [x] Estados de cuenta e insignias en el perfil (§3) — hecho el 2026-09-22
 
@@ -220,17 +275,32 @@ Qué implicaría, para decidirlo cuando toque:
 - **El costo de no hacerlo ahora es bajo**: pasar de una columna a una tabla es un
   cambio contenido, y hasta que exista el selector de modo nadie opera con dos roles.
 
-### 6. [ ] Pantalla de pago y manifiesto de ejemplo (§6 y §7)
+### 6. [x] Pantalla de pago y manifiesto de ejemplo (§6 y §7) — hecho el 2026-09-22
 
 | | |
 |---|---|
-| **Archivos** | Nuevos: `public/pago.html`, `public/manifiesto.html` y sus dos `public/js/pages/*.js` |
+| **Archivos tocados** | Nuevos: `public/pago.html`, `public/manifiesto.html`, sus dos `pages/*.js` y `public/js/data/operacion-ejemplo.js`. Modificados: `ui/estructura.js` (los dos enlaces) y la prueba que cuenta páginas |
 | **Supabase** | No: los datos son de ejemplo (D-2, D-9) |
 | **Tamaño** | Mediano |
-| **Real o simulado** | **Simulado entero** (§0.1): desglose con CLABE de ejemplo, botón "Simular pago recibido", manifiesto como vista previa en HTML y firmas como pasos marcados. Sin Stripe, sin PDF, sin doc2sign |
+| **Real o simulado** | **Simulado entero** (§0.1) |
 
-Cada archivo simulado lleva su comentario `// SIMULADO:` explicando qué hará la versión
-real (§0.1). Las empresas que aparezcan en el ejemplo son inventadas (D-9).
+**Pago:** desglose con lote, flete y comisión del 3%, CLABE de ejemplo, los cuatro pasos del
+cobro y un botón "Simular pago recibido" que enciende el enlace al manifiesto.
+
+**Manifiesto:** vista previa en HTML con las ocho secciones del formato de la SMA y sus
+números, campo para capturar el folio, y las tres firmas como casillas que se marcan.
+
+Las empresas son inventadas (D-9): ni siquiera se usan nombres del padrón como ejemplo. Una
+captura circulando con el nombre de alguien que nunca aceptó salir ahí es un problema.
+
+**Cada pantalla dice en su propia cara que es una demostración**, no solo en los comentarios
+del código: que el pago lo confirma Stripe y no un botón, que la CLABE no existe en ningún
+banco, y que esas firmas no tienen valor legal. Los avisos se escriben desde el JS a
+propósito: si algún día esto se conecta de verdad, quitarlos es parte de tocar ese archivo.
+
+Se llega desde el menú: "Pago de una operación (ejemplo)" en comprador y "Manifiesto
+(ejemplo)" en generador, cada uno del rol que lo usa en el flujo real. Cuando exista "Mis
+operaciones" (tarea 8), ese será el camino y estos enlaces sobran.
 
 ---
 
