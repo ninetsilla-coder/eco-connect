@@ -4,58 +4,16 @@
   <meta charset="UTF-8" />
   <title>Transporte responsable | Eco Connect</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fuentes: Anton (títulos) y Poppins (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
- <!-- Navbar -->
-  <header class="navbar">
-    <div class="container navbar-content">
-      <div class="logo-text">
-        <span class="logo-eco">Eco</span><span class="logo-connect">Connect</span>
-      </div>
-
-<!-- Botón hamburguesa (solo se verá en móvil con CSS) -->
-    <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
-      ☰
-    </button>
-
-      <nav class="nav-links" id="nav-links">
-        <a href="#quienes-somos">CONÓCENOS</a>
-        <a href="#impacto">IMPACTO</a>
-
-  <!-- RESIDUOS con link + dropdown en un solo bloque -->
- <div class="nav-item dropdown" id="menu-residuos">
-  <a href="index.html#demo-residuos" class="nav-link">RESIDUOS ▾</a>
-  <div class="dropdown-menu" id="dropdown-residuos">
-    <!-- Opciones para proveedor de residuos -->
-    <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
-    <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
-    <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
-
-    <!-- Opciones para logística -->
-    <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
-    <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
-    <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
- 
-    <!-- Opciones para comprador -->
-    <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
-    <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
-    <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
-
-   </div>
-</div>
-
-        <a href="#beneficios">BENEFICIOS</a>
-        <a href="#faq">FAQ</a>
-        </nav>
-
-      <div class="navbar-auth">
-        <button id="login-button" class="btn btn-primary">Login / Registrarse</button>
-        <span id="account-label" class="navbar-account" style="display: none;">Mi cuenta</span>
-        <button id="logout-button" class="btn btn-outline" style="display: none;">Cerrar sesión</button>
-      </div>
-    </div>
-  </header>
 
 
   <main class="section">
@@ -116,165 +74,9 @@
     </div>
   </main>
 
-  <footer class="footer">
-    <div class="container footer-content">
-      <p>© <span id="year"></span> Eco Connect. Tu aliado en economía circular.</p>
-    </div>
-  </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/script.js"></script>
-
-  <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    const form = document.getElementById("form-transporte-responsable");
-    const statusEl = document.getElementById("status-transporte-responsable");
-    const selectServicio = document.getElementById("servicio-transporte-select");
-
-    const inputPermisos = document.getElementById("docs-permisos");
-    const inputCertificaciones = document.getElementById("docs-certificaciones");
-    const inputSeguros = document.getElementById("docs-seguros");
-
-    const txtManejo = document.getElementById("practicas-manejo");
-    const txtRegulaciones = document.getElementById("practicas-regulaciones");
-    const txtProcedimientos = document.getElementById("practicas-procedimientos");
-
-    // 1) Obtener sesión
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    if (sessionError || !sessionData?.session?.user) {
-      if (statusEl) {
-        statusEl.textContent = "Debes iniciar sesión para usar esta sección.";
-        statusEl.classList.add("error");
-      }
-      return;
-    }
-    const user = sessionData.session.user;
-
-    // 2) Llenar el select con los servicios de ese usuario
-    if (selectServicio) {
-      const { data: servicios, error: serviciosError } = await supabaseClient
-        .from("servicios_transporte")
-        .select("id, tipo_transporte, zona_cobertura")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });  // [web:585]
-
-      if (serviciosError) {
-        console.error("Error obteniendo servicios para select:", serviciosError);
-        if (statusEl) {
-          statusEl.textContent = "No se pudieron cargar tus servicios.";
-          statusEl.classList.add("error");
-        }
-      } else if (servicios && servicios.length > 0) {
-        servicios.forEach((s) => {
-          const opt = document.createElement("option");
-          opt.value = s.id;
-          opt.textContent = `${s.tipo_transporte} – ${s.zona_cobertura}`;
-          selectServicio.appendChild(opt);
-        });
-      } else {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "No tienes servicios publicados aún.";
-        selectServicio.appendChild(opt);
-        selectServicio.disabled = true;
-      }
-    }
-
-    if (!form) return;
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      if (!selectServicio.value) {
-        if (statusEl) {
-          statusEl.textContent = "Selecciona primero un servicio de transporte.";
-          statusEl.classList.add("error");
-        }
-        return;
-      }
-
-      if (statusEl) {
-        statusEl.textContent = "Guardando documentación...";
-        statusEl.className = "form-status";
-      }
-
-      try {
-        async function subirGrupoArchivos(inputFile, carpeta) {
-          const urls = [];
-          if (!inputFile || !inputFile.files || inputFile.files.length === 0) return urls;
-
-          const files = Array.from(inputFile.files);
-          for (const file of files) {
-            const ext = file.name.split(".").pop();
-            const fileName = `${user.id}/${selectServicio.value}/${carpeta}/${crypto.randomUUID()}.${ext}`;
-
-            const { data: uploadData, error: uploadError } = await supabaseClient.storage
-              .from("docs-transporte")
-              .upload(fileName, file, {
-                cacheControl: "3600",
-                upsert: false,
-              });  // [web:578]
-
-            if (uploadError) {
-              console.error(`Error subiendo archivo (${carpeta}):`, uploadError);
-              continue;
-            }
-
-            const publicUrl = supabaseClient.storage
-              .from("docs-transporte")
-              .getPublicUrl(uploadData.path).data.publicUrl;
-
-            urls.push(publicUrl);
-          }
-
-          return urls;
-        }
-
-        const permisosUrls = await subirGrupoArchivos(inputPermisos, "permisos");
-        const certificacionesUrls = await subirGrupoArchivos(inputCertificaciones, "certificaciones");
-        const segurosUrls = await subirGrupoArchivos(inputSeguros, "seguros");
-
-        const { error: insertError } = await supabaseClient
-          .from("cumplimiento_transporte")
-          .insert([
-            {
-              user_id: user.id,
-              servicio_id: selectServicio.value,
-              permisos_urls: permisosUrls.length ? permisosUrls : null,
-              certificaciones_urls: certificacionesUrls.length ? certificacionesUrls : null,
-              seguros_urls: segurosUrls.length ? segurosUrls : null,
-              practicas_manejo: txtManejo.value.trim() || null,
-              practicas_regulaciones: txtRegulaciones.value.trim() || null,
-              practicas_procedimientos: txtProcedimientos.value.trim() || null,
-            },
-          ]);  // [web:595]
-
-        if (insertError) {
-          console.error("Error guardando cumplimiento_transporte:", insertError);
-          if (statusEl) {
-            statusEl.textContent = "Ocurrió un error al guardar la información. Intenta de nuevo.";
-            statusEl.classList.add("error");
-          }
-          return;
-        }
-
-        form.reset();
-        selectServicio.value = "";
-        if (statusEl) {
-          statusEl.textContent = "Documentación guardada correctamente para ese servicio.";
-          statusEl.classList.add("success");
-        }
-      } catch (err) {
-        console.error("Error inesperado en transporte responsable:", err);
-        if (statusEl) {
-          statusEl.textContent = "Ocurrió un error inesperado. Intenta más tarde.";
-          statusEl.classList.add("error");
-        }
-      }
-    });
-  });
-</script>
+  <!-- Scripts -->
+  <script type="module" src="js/pages/transporte-responsable.js"></script>
 
 
 </body>
