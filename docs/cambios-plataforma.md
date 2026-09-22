@@ -54,12 +54,14 @@ Después de crear la cuenta, la empresa llena su expediente. La pantalla muestra
 
 | Bloque | Se muestra a | Obligatorio | Campos por documento |
 |---|---|---|---|
-| Datos generales | Todos | Constancia de Situación Fiscal, identificación del representante legal | PDF |
+| Datos generales | Todos | Constancia de Situación Fiscal, identificación oficial del representante legal o del titular | PDF |
 | Impacto ambiental | Generador y comprador | Sí | Tipo (informe preventivo / manifestación de impacto ambiental), autoridad que la emitió (SMA / SEMARNAT), número de oficio, PDF |
 | Registro de generador | Generador | Sí | Número de oficio, fecha, vigencia, PDF |
 | Autorización SMA | Comprador | Sí | Tipo (acopio / reciclaje y co-procesamiento / tratamiento), número de oficio, fecha, vigencia, PDF |
 | Autorización de transporte | Transportista | Sí | Número de oficio, fecha, vigencia, PDF; placas y tipo de cada vehículo; póliza de seguro |
-| Recomendados | Según rol | No | Acta constitutiva, opinión de cumplimiento SAT, caracterización de laboratorio (generador), ISO 14001 o Industria Limpia (comprador), permiso federal de autotransporte (transportista) |
+| Recomendados | Según rol | No | Acta constitutiva (solo personas morales), opinión de cumplimiento SAT, caracterización de laboratorio (generador), ISO 14001 o Industria Limpia (comprador), permiso federal de autotransporte (transportista) |
+
+**Persona moral o física.** La constancia y la identificación son obligatorias para los tres roles, transportista incluido: también cobra dentro de la plataforma. El acta constitutiva solo se le muestra a quien es persona moral, deducido del RFC del registro (12 caracteres persona moral, 13 persona física). Y la identificación dice "o del titular" porque un transportista persona física no tiene representante legal.
 
 **Botón final:** "Enviar a revisión". Se activa solo cuando están todos los obligatorios del rol. Al enviarlo, la cuenta pasa a `en revisión`.
 

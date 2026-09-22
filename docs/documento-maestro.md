@@ -152,12 +152,14 @@ En Coahuila, los residuos industriales no peligrosos son de manejo especial y lo
 
 | Perfil | Obligatorio | Recomendado (insignia) |
 |---|---|---|
-| Todos | Constancia de Situación Fiscal, identificación del representante legal | Acta constitutiva, opinión de cumplimiento del SAT |
+| Todos | Constancia de Situación Fiscal, identificación oficial del representante legal o del titular | Acta constitutiva (solo personas morales), opinión de cumplimiento del SAT |
 | Generador | Autorización de impacto ambiental; número de registro como generador de residuos de manejo especial; registro del plan de manejo | Caracterización de laboratorio que demuestre que el material no es peligroso |
 | Comprador | Autorización de impacto ambiental; autorización SMA de acopio, reciclaje o co-procesamiento, o tratamiento | Certificaciones ambientales (ISO 14001, Industria Limpia) |
 | Transportista | Autorización de recolección y transporte en Coahuila, vehículos registrados, verificación vehicular y seguro | Permiso federal de autotransporte |
 
 Para cada autorización se piden número de oficio, fecha, vigencia y PDF; para el comprador, además, el tipo de autorización. La autorización de impacto ambiental indica si es informe preventivo o manifestación de impacto ambiental, y qué autoridad la emitió.
+
+**Persona moral o física.** La constancia de situación fiscal y la identificación oficial se le piden a todas las empresas, incluidos los transportistas: también cobran dentro de la plataforma. El acta constitutiva, en cambio, solo existe si la empresa es persona moral, y solo a ellas se les pide. La plataforma lo deduce del RFC capturado al registrarse: 12 caracteres es persona moral, 13 es persona física. Por eso la identificación se pide "del representante legal **o del titular**": un transportista persona física no tiene representante legal.
 
 ### Cómo se revisa
 

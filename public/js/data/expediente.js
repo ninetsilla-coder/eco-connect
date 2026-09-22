@@ -61,10 +61,12 @@ const DOCUMENTOS = Object.freeze([
     nombre: "Constancia de Situación Fiscal",
     roles: null, obligatorio: true, campos: [],
   },
+  // "o del titular" no es un adorno: un transportista puede ser persona
+  // física y no tener representante legal a quien identificar.
   {
     id: "identificacion_representante",
     bloque: "Datos generales",
-    nombre: "Identificación del representante legal",
+    nombre: "Identificación oficial del representante legal o del titular",
     roles: null, obligatorio: true, campos: [],
   },
 
@@ -195,11 +197,16 @@ const DOCUMENTOS = Object.freeze([
   },
 
   // ---------- Recomendados ----------
+  // Solo las personas morales tienen acta constitutiva. Pedírsela a una
+  // persona física es pedirle un papel que no existe, y dejaría su
+  // expediente "incompleto" para siempre sin que pueda hacer nada.
   {
     id: "acta_constitutiva",
     bloque: "Recomendados",
     nombre: "Acta constitutiva",
     roles: null, obligatorio: false, campos: [],
+    soloPersonaMoral: true,
+    ayuda: "Si tu empresa es persona moral, sube el acta constitutiva.",
   },
   {
     id: "opinion_sat",
@@ -242,8 +249,28 @@ export function amparaMaterial(guardados, materialId) {
   return amparados.includes(materialId);
 }
 
-export function documentosDeRol(rol) {
-  return DOCUMENTOS.filter((doc) => doc.roles === null || doc.roles.includes(rol));
+// Persona moral o física, por la longitud del RFC que capturó al
+// registrarse: 12 caracteres una empresa, 13 una persona física
+// (docs/cambios-plataforma.md §1).
+//
+// Devuelve `null` cuando no hay RFC —cuentas anteriores al 2026-09-22—.
+// Null no es "persona física": es "no se sabe", y con eso NO se esconde
+// nada. Esconder a ciegas le quitaría a una empresa un documento que sí
+// puede subir, sin decirle por qué.
+export function esPersonaMoral(rfc) {
+  const limpio = String(rfc ?? "").trim();
+  if (!limpio) return null;
+  return limpio.length === 12;
+}
+
+export function documentosDeRol(rol, rfc) {
+  const moral = esPersonaMoral(rfc);
+
+  return DOCUMENTOS.filter((doc) => {
+    if (doc.roles !== null && !doc.roles.includes(rol)) return false;
+    if (doc.soloPersonaMoral && moral === false) return false;
+    return true;
+  });
 }
 
 // El expediente se reparte en DOS PANTALLAS, y la frontera no es
@@ -292,14 +319,14 @@ export function infoPantalla(id) {
   return PANTALLAS.find((p) => p.id === id) ?? PANTALLAS[0];
 }
 
-export function documentosDePantalla(rol, pantallaId) {
-  return documentosDeRol(rol).filter((doc) => pantallaDeDocumento(doc) === pantallaId);
+export function documentosDePantalla(rol, pantallaId, rfc) {
+  return documentosDeRol(rol, rfc).filter((doc) => pantallaDeDocumento(doc) === pantallaId);
 }
 
 // Los bloques de una pantalla, en el orden del catálogo.
-export function bloquesDePantalla(rol, pantallaId) {
+export function bloquesDePantalla(rol, pantallaId, rfc) {
   const bloques = [];
-  documentosDePantalla(rol, pantallaId).forEach((doc) => {
+  documentosDePantalla(rol, pantallaId, rfc).forEach((doc) => {
     const existente = bloques.find((b) => b.nombre === doc.bloque);
     if (existente) existente.documentos.push(doc);
     else bloques.push({ nombre: doc.bloque, documentos: [doc] });
@@ -310,9 +337,9 @@ export function bloquesDePantalla(rol, pantallaId) {
 // Lo que falta, separado por pantalla. El botón de enviar cuenta las
 // dos: quien termina una no ha terminado el expediente, y sin decirle
 // dónde está lo que falta se queda buscando en la pantalla equivocada.
-export function faltantesPorPantalla(rol, guardados = []) {
-  const pendientes = new Set(faltantes(rol, guardados));
-  const porId = new Map(documentosDeRol(rol).map((doc) => [doc.id, doc]));
+export function faltantesPorPantalla(rol, guardados = [], rfc) {
+  const pendientes = new Set(faltantes(rol, guardados, rfc));
+  const porId = new Map(documentosDeRol(rol, rfc).map((doc) => [doc.id, doc]));
 
   return PANTALLAS.map((pantalla) => ({
     ...pantalla,
@@ -358,21 +385,24 @@ export function filasDe(guardados = [], docId) {
 // Con varios registros basta UNO entregado para que el documento
 // cuente: una empresa con dos plantas que solo ha subido el registro de
 // la primera ya puede operar con esa.
-export function faltantes(rol, guardados = []) {
-  return documentosDeRol(rol)
+export function faltantes(rol, guardados = [], rfc) {
+  return documentosDeRol(rol, rfc)
     .filter((doc) => doc.obligatorio &&
       !filasDe(guardados, doc.id).some((fila) => entregado(doc, fila)))
     .map((doc) => doc.id);
 }
 
-export function puedeEnviarse(rol, guardados = []) {
-  return documentosDeRol(rol).length > 0 && faltantes(rol, guardados).length === 0;
+export function puedeEnviarse(rol, guardados = [], rfc) {
+  return documentosDeRol(rol, rfc).length > 0 && faltantes(rol, guardados, rfc).length === 0;
 }
 
 // La insignia de "expediente completo": además de los obligatorios,
 // todos los recomendados de su rol (cambios-plataforma §3).
-export function expedienteCompleto(rol, guardados = []) {
-  return documentosDeRol(rol)
+// El RFC importa aquí: sin él, una persona física nunca tendría el
+// expediente "completo" por no subir un acta constitutiva que no
+// existe.
+export function expedienteCompleto(rol, guardados = [], rfc) {
+  return documentosDeRol(rol, rfc)
     .every((doc) => filasDe(guardados, doc.id).some((fila) => entregado(doc, fila)));
 }
 

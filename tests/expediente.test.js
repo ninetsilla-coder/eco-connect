@@ -144,6 +144,46 @@ describe("cuándo se puede enviar a revisión", () => {
     assert.equal(puedeEnviarse("otro", []), false);
   });
 
+  // Una persona física no tiene acta constitutiva. Pedírsela la dejaría
+  // con el expediente "incompleto" para siempre, sin poder hacer nada.
+  test("el acta constitutiva solo se le pide a una persona moral", () => {
+    const ids = (rfc) => documentosDeRol("logistica", rfc).map((d) => d.id);
+
+    assert.ok(ids("MNA240115AB9").includes("acta_constitutiva"), "12 caracteres: persona moral");
+    assert.ok(!ids("MNAA240115AB9").includes("acta_constitutiva"), "13: persona física");
+  });
+
+  // Sin RFC no se sabe, y no saber no es razón para esconder un
+  // documento que la empresa sí puede subir.
+  test("sin RFC no se esconde nada", () => {
+    assert.ok(documentosDeRol("logistica").map((d) => d.id).includes("acta_constitutiva"));
+    assert.ok(documentosDeRol("logistica", "").map((d) => d.id).includes("acta_constitutiva"));
+  });
+
+  test("una persona física puede tener el expediente completo", () => {
+    const fisica = "MNAA240115AB9";
+    const todos = documentosDeRol("logistica", fisica).map((doc) => ({
+      tipo_documento: doc.id,
+      archivo_ruta: doc.sinArchivo ? null : `u/${doc.id}.pdf`,
+      notas: doc.sinArchivo ? "Torton" : null,
+    }));
+
+    assert.equal(expedienteCompleto("logistica", todos, fisica), true);
+    // Y con el mismo expediente, a una persona moral le faltaría el acta.
+    assert.equal(expedienteCompleto("logistica", todos, "MNA240115AB9"), false);
+  });
+
+  // El transportista también cobra dentro de la plataforma, así que sus
+  // datos fiscales y su identificación son obligatorios igual que los
+  // de cualquier otro rol.
+  test("constancia e identificación son obligatorias también para el transportista", () => {
+    const obligatorios = documentosDeRol("logistica")
+      .filter((d) => d.obligatorio).map((d) => d.id);
+
+    assert.ok(obligatorios.includes("constancia_fiscal"));
+    assert.ok(obligatorios.includes("identificacion_representante"));
+  });
+
   // El plan de manejo es obligatorio: en la fase 1 solo entran grandes
   // generadores, y todos deben tenerlo (Reglamento de Coahuila).
   test("el plan de manejo es obligatorio para el generador", () => {

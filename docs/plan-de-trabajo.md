@@ -220,6 +220,26 @@ describe qué se hizo con cada uno.
 | 6 | La modalidad del manifiesto sale del tipo de autorización | ✅ |
 | 7 | Avisar al generador de un comprador nuevo | ⏳ bloque 3 |
 
+#### Cuarta pasada: persona moral o física (2026-09-22)
+
+No todas las empresas son sociedades, y el expediente lo daba por hecho.
+
+- **"Identificación del representante legal"** pasa a **"Identificación oficial del
+  representante legal o del titular"**: un transportista puede ser persona física y no tener
+  representante legal a quien identificar.
+- **El acta constitutiva solo se le muestra a una persona moral.** Se deduce del RFC que
+  capturó al registrarse: 12 caracteres persona moral, 13 persona física. Es recomendado, así
+  que no bloqueaba el envío — pero sí el **"expediente completo"**, y una persona física nunca
+  lo habría conseguido por no subir un papel que no existe.
+- **Sin RFC no se esconde nada.** Las cuentas anteriores al registro nuevo no lo tienen, y no
+  saber no es razón para quitarle a una empresa un documento que sí puede subir. Mismo
+  criterio que con los materiales amparados.
+- **La constancia y la identificación siguen siendo obligatorias para los tres roles**,
+  transportista incluido: también cobra dentro de la plataforma.
+
+El RFC **ya estaba disponible** en la pantalla: `core/sesion.js` trae el perfil entero, así
+que no hizo falta ninguna consulta nueva ni nada en Supabase.
+
 #### Tercera pasada: el expediente en dos pantallas (2026-09-22)
 
 Un solo formulario con todo dentro mezclaba dos cosas distintas, y se notaba en que el

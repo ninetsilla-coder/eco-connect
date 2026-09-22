@@ -461,6 +461,10 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
   if (!sesion) return;
 
   const rol = sesion.rol;
+  // El RFC decide si se le piden documentos de persona moral. Viene con
+  // la sesión —`core/sesion.js` trae el perfil entero—, así que no hace
+  // falta ninguna consulta extra.
+  const rfc = sesion.perfil?.rfc;
   let estadoCuenta = sesion.perfil?.estado || "pendiente";
 
   const pintarEstadoCuenta = () => {
@@ -489,7 +493,7 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
   mostrar(estadoPagina, "");
 
   const opciones = {
-    bloques: datos.bloques(rol, pantallaId),
+    bloques: datos.bloques(rol, pantallaId, rfc),
     subtitulos,
     campos,
     materiales,
@@ -509,7 +513,7 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
   // terminado el expediente, y sin decirle dónde está lo pendiente se
   // queda buscándolo en la pantalla equivocada.
   function pintarPendientes() {
-    const grupos = datos.faltantesPorPantalla(rol, guardados);
+    const grupos = datos.faltantesPorPantalla(rol, guardados, rfc);
     const operando = puedeOperar(estadoCuenta);
     const cuantos = grupos.reduce((suma, g) => suma + g.documentos.length, 0);
     const textos = textoPendientes(cuantos, operando);
@@ -544,7 +548,7 @@ export async function montarExpediente({ pantallaId, subtitulos, campos, materia
       }
     }
 
-    if (botonEnviar) botonEnviar.disabled = !datos.puedeEnviarse(rol, guardados);
+    if (botonEnviar) botonEnviar.disabled = !datos.puedeEnviarse(rol, guardados, rfc);
 
     if (cajaAvisoOtra) {
       cajaAvisoOtra.textContent = "";
