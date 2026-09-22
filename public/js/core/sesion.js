@@ -104,7 +104,31 @@ export async function requiereSesion(destino = "index.html") {
     window.location.href = destino;
     return null;
   }
+
+  // La comprobación al cargar no basta: la sesión puede terminarse DESPUÉS
+  // —al cerrarla aquí, al cerrarla en otra pestaña, al caducar— y quien
+  // llamó a esta función se quedaría en una página que ya no le
+  // corresponde, viéndola como si siguiera dentro.
+  //
+  // No es una guarda de seguridad: los datos ya no cargarían igualmente,
+  // porque las políticas RLS los niegan sin sesión. Es no dejar a nadie
+  // delante de una pantalla que miente.
+  vigilarSalida(destino);
+
   return estado;
+}
+
+// Una sola vigilancia por página, aunque se llame a requiereSesion
+// varias veces.
+let vigilando = false;
+
+function vigilarSalida(destino) {
+  if (vigilando) return;
+  vigilando = true;
+
+  alCambiarSesion((nuevo) => {
+    if (!nuevo.usuario) window.location.href = destino;
+  });
 }
 
 export async function requiereRol(rolEsperado, destino = "index.html") {

@@ -108,10 +108,16 @@ function montarScrollSuave() {
 //
 // Opciones:
 //   cuentaClicable      false en profile.html, que ya ES la cuenta.
-//   destinoTrasLogout   a dónde ir al cerrar sesión; null = quedarse.
+//   destinoTrasLogout   a dónde ir al cerrar sesión.
+//
+// `destinoTrasLogout` vale "index.html" POR DEFECTO desde el
+// 2026-09-22. Antes era null —quedarse— y solo profile.html pasaba un
+// destino, así que cerrar sesión desde cualquier otra página dejaba al
+// usuario ahí, sin sesión pero viendo la pantalla de alguien que la
+// tiene. "A veces me redirige y muchas no" era exactamente eso.
 export function montarNavbar({
   cuentaClicable = true,
-  destinoTrasLogout = null,
+  destinoTrasLogout = "index.html",
 } = {}) {
   // Primero el markup: todo lo de abajo lo busca por id.
   montarEstructura();
@@ -122,7 +128,13 @@ export function montarNavbar({
 
   document.getElementById("logout-button")?.addEventListener("click", async () => {
     await cerrarSesion();
-    if (destinoTrasLogout) window.location.href = destinoTrasLogout;
+
+    // Desde la propia portada no se va a ninguna parte: ya se está en
+    // la página pública, y recargarla solo daría un parpadeo.
+    const aqui = window.location.pathname.split("/").pop() || "index.html";
+    if (destinoTrasLogout && destinoTrasLogout !== aqui) {
+      window.location.href = destinoTrasLogout;
+    }
   });
 
   const etiquetaCuenta = document.getElementById("account-label");

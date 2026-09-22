@@ -623,6 +623,18 @@ Corregidos en la migración:
   habría sido más rápido, pero reabría una versión de la fuga que acababa de
   cerrarse en `perfil_lectura`.
 
+- **Cerrar sesión no sacaba de la página** (2026-09-22). `montarNavbar()` solo
+  redirigía si la página le pasaba un destino, y la única que lo hacía era
+  `profile.html`: en las demás se cerraba la sesión y el usuario se quedaba ahí,
+  viendo una pantalla que ya no le correspondía. Ahora el destino es
+  `index.html` por defecto.
+
+  Y la mitad que no se veía: `requiereSesion()` comprobaba la sesión **al cargar
+  y nunca más**, así que cerrarla en otra pestaña —o que caducara— dejaba la
+  página abierta igual. Ahora vigila el cambio y sale sola. Sigue sin ser
+  seguridad: los datos ya no cargarían, porque RLS los niega sin sesión. Es no
+  dejar a nadie delante de una pantalla que miente.
+
 Pendientes:
 
 - 🔴 **El estado de la cuenta no bloquea nada de verdad** (2026-09-22). Desde la
