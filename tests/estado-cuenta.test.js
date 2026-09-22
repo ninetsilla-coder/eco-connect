@@ -26,6 +26,7 @@ import assert from "node:assert/strict";
 import { montarDom, desmontarDom } from "./ayudas/dom.js";
 import {
   ESTADOS, infoEstado, puedeOperar, crearAvisoEstado, bloquearSiNoOpera,
+  etiquetaRevision,
 } from "../public/js/ui/estado-cuenta.js";
 
 describe("quién puede operar", () => {
@@ -67,6 +68,36 @@ describe("quién puede operar", () => {
       assert.ok(info.titulo?.length > 0, nombre);
       assert.ok(info.detalle?.length > 0, nombre);
     });
+  });
+});
+
+// El estado de la cuenta y el de cada documento son cosas distintas y
+// pueden contradecirse. Pasó: la cuenta decía "Verificado" y cada
+// documento "En espera de revisión", porque el estado del documento se
+// quedó en su valor por defecto al verificar la cuenta a mano.
+describe("el veredicto de cada documento", () => {
+  test("una cuenta verificada no deja documentos 'en espera'", () => {
+    const [texto] = etiquetaRevision("pendiente", "verificado");
+    assert.equal(texto, "Aprobado");
+  });
+
+  // Lo que el equipo marcó documento por documento manda sobre lo que
+  // diga la cuenta: si rechazó uno, hay que verlo aunque el resto pase.
+  test("el veredicto del equipo sobre un documento manda", () => {
+    assert.deepEqual(etiquetaRevision("rechazado", "verificado"), ["Rechazado", "rechazado"]);
+    assert.deepEqual(etiquetaRevision("aprobado", "pendiente"), ["Aprobado", "aprobado"]);
+  });
+
+  // Sin haber enviado el expediente no hay revisión que esperar. Decir
+  // "en espera" ahí es prometer una cola en la que nadie está.
+  test("sin enviar el expediente no se promete ninguna revisión", () => {
+    assert.equal(etiquetaRevision("pendiente", "pendiente"), null);
+    assert.equal(etiquetaRevision("pendiente", "rechazado"), null);
+  });
+
+  test("con el expediente enviado, los documentos están en revisión", () => {
+    const [texto] = etiquetaRevision("pendiente", "en_revision");
+    assert.equal(texto, "En revisión");
   });
 });
 

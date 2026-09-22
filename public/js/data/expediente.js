@@ -41,7 +41,7 @@ export const CAMPOS = Object.freeze({
 // los recomendados: no bloquea el envío, pero da la insignia de
 // "expediente completo" (cambios-plataforma §3).
 //
-// El expediente tiene DOS NIVELES, y la diferencia no es de orden:
+// El expediente vive en DOS PANTALLAS, y la diferencia no es de orden:
 //
 //   empresa        Se llenan una vez y valen para cualquier rol. Una
 //                  constancia fiscal es de la empresa, no del generador.
@@ -99,6 +99,16 @@ const DOCUMENTOS = Object.freeze([
     // cotejan contra el padrón público de la SMA. Los materiales NO
     // están en el padrón; se leen del PDF.
   },
+  // La caracterización de laboratorio acompaña al registro y no está
+  // con los recomendados de la empresa: es del MATERIAL, no de quien lo
+  // genera.
+  {
+    id: "caracterizacion_laboratorio",
+    bloque: "Registro de generador",
+    nombre: "Caracterización de laboratorio",
+    roles: ["proveedor"], obligatorio: false, campos: [],
+    ayuda: "Si tienes un análisis de laboratorio de tu material, súbelo: da la insignia de material caracterizado.",
+  },
   {
     id: "plan_manejo",
     bloque: "Registro de generador",
@@ -129,6 +139,13 @@ const DOCUMENTOS = Object.freeze([
     ayuda: "Marca los materiales que aparecen en tu autorización. Recuerda que se refrenda cada dos años.",
     // Cómo lo revisa el equipo: oficio y vigencia contra el padrón de
     // la SMA; los materiales, leyendo el PDF.
+  },
+  {
+    id: "certificacion_ambiental",
+    bloque: "Autorización SMA",
+    nombre: "ISO 14001 o Industria Limpia",
+    roles: ["comprador"], obligatorio: false, campos: [],
+    ayuda: "Si tienes una certificación ambiental, súbela.",
   },
 
   // ---------- Transportista ----------
@@ -169,6 +186,13 @@ const DOCUMENTOS = Object.freeze([
     roles: ["logistica"], obligatorio: true,
     campos: [CAMPOS.VIGENCIA],
   },
+  {
+    id: "permiso_federal",
+    bloque: "Autorización de transporte",
+    nombre: "Permiso federal de autotransporte",
+    roles: ["logistica"], obligatorio: false, campos: [],
+    ayuda: "Si transportas por carreteras federales, sube tu permiso.",
+  },
 
   // ---------- Recomendados ----------
   {
@@ -182,25 +206,6 @@ const DOCUMENTOS = Object.freeze([
     bloque: "Recomendados",
     nombre: "Opinión de cumplimiento del SAT",
     roles: null, obligatorio: false, campos: [],
-  },
-  {
-    id: "caracterizacion_laboratorio",
-    bloque: "Recomendados",
-    nombre: "Caracterización de laboratorio",
-    roles: ["proveedor"], obligatorio: false, campos: [],
-    ayuda: "Si tienes un análisis de laboratorio de tu material, súbelo: da la insignia de material caracterizado.",
-  },
-  {
-    id: "certificacion_ambiental",
-    bloque: "Recomendados",
-    nombre: "ISO 14001 o Industria Limpia",
-    roles: ["comprador"], obligatorio: false, campos: [],
-  },
-  {
-    id: "permiso_federal",
-    bloque: "Recomendados",
-    nombre: "Permiso federal de autotransporte",
-    roles: ["logistica"], obligatorio: false, campos: [],
   },
 ]);
 
@@ -241,38 +246,80 @@ export function documentosDeRol(rol) {
   return DOCUMENTOS.filter((doc) => doc.roles === null || doc.roles.includes(rol));
 }
 
-// A qué nivel pertenece cada bloque. Se deduce del bloque y no se
-// repite documento por documento: así no puede quedar un documento de
-// "Datos generales" clasificado como autorización por un descuido.
-const NIVEL_DE_BLOQUE = {
+// El expediente se reparte en DOS PANTALLAS, y la frontera no es
+// estética: arriba lo que describe a la empresa y se llena una vez;
+// abajo lo que la SMA autoriza, que depende del rol y se repite por
+// establecimiento.
+//
+// Se deduce del bloque y no se repite documento por documento: así no
+// puede quedar uno de "Datos generales" clasificado como autorización
+// por un descuido.
+//
+// El impacto ambiental va ARRIBA aunque dependa del rol: es requisito
+// para publicar o comprar, no una autorización por planta. Al
+// transportista no se le pide, y por eso su documento lleva `roles`.
+const PANTALLA_DE_BLOQUE = {
   "Datos generales": "empresa",
   "Impacto ambiental": "empresa",
+  "Recomendados": "empresa",
   "Registro de generador": "autorizaciones",
   "Autorización SMA": "autorizaciones",
   "Autorización de transporte": "autorizaciones",
-  "Recomendados": "recomendados",
 };
 
-export const NIVELES = Object.freeze([
+export const PANTALLAS = Object.freeze([
   {
     id: "empresa",
     titulo: "Documentos de la empresa",
-    descripcion: "Se llenan una sola vez y valen para todos tus roles.",
+    pagina: "expediente.html",
+    enlace: "Mi expediente",
+    descripcion: "Describen a tu empresa. Se llenan una sola vez y valen para todos tus roles.",
   },
   {
     id: "autorizaciones",
-    titulo: "Autorizaciones",
-    descripcion: "La SMA autoriza por establecimiento: si tienes varias plantas, agrega un registro por cada una.",
-  },
-  {
-    id: "recomendados",
-    titulo: "Recomendados",
-    descripcion: "No son obligatorios. Completarlos te da la insignia de expediente completo.",
+    titulo: "Mis autorizaciones",
+    pagina: "autorizaciones.html",
+    enlace: "Mis autorizaciones",
+    descripcion: "Lo que la SMA te autoriza. Se autoriza por establecimiento: si tienes varias plantas, agrega un registro por cada una.",
   },
 ]);
 
-export function nivelDeDocumento(doc) {
-  return NIVEL_DE_BLOQUE[doc.bloque] ?? "empresa";
+export function pantallaDeDocumento(doc) {
+  return PANTALLA_DE_BLOQUE[doc.bloque] ?? "empresa";
+}
+
+export function infoPantalla(id) {
+  return PANTALLAS.find((p) => p.id === id) ?? PANTALLAS[0];
+}
+
+export function documentosDePantalla(rol, pantallaId) {
+  return documentosDeRol(rol).filter((doc) => pantallaDeDocumento(doc) === pantallaId);
+}
+
+// Los bloques de una pantalla, en el orden del catálogo.
+export function bloquesDePantalla(rol, pantallaId) {
+  const bloques = [];
+  documentosDePantalla(rol, pantallaId).forEach((doc) => {
+    const existente = bloques.find((b) => b.nombre === doc.bloque);
+    if (existente) existente.documentos.push(doc);
+    else bloques.push({ nombre: doc.bloque, documentos: [doc] });
+  });
+  return bloques;
+}
+
+// Lo que falta, separado por pantalla. El botón de enviar cuenta las
+// dos: quien termina una no ha terminado el expediente, y sin decirle
+// dónde está lo que falta se queda buscando en la pantalla equivocada.
+export function faltantesPorPantalla(rol, guardados = []) {
+  const pendientes = new Set(faltantes(rol, guardados));
+  const porId = new Map(documentosDeRol(rol).map((doc) => [doc.id, doc]));
+
+  return PANTALLAS.map((pantalla) => ({
+    ...pantalla,
+    documentos: [...pendientes]
+      .map((id) => porId.get(id))
+      .filter((doc) => doc && pantallaDeDocumento(doc) === pantalla.id),
+  }));
 }
 
 // Qué documentos admiten varios registros. Se declara documento por
@@ -294,16 +341,6 @@ export function bloquesDeRol(rol) {
   return bloques;
 }
 
-// Los bloques repartidos en los dos niveles, para pintarlos en orden.
-export function nivelesDeRol(rol) {
-  const bloques = bloquesDeRol(rol);
-  return NIVELES
-    .map((nivel) => ({
-      ...nivel,
-      bloques: bloques.filter((b) => NIVEL_DE_BLOQUE[b.nombre] === nivel.id),
-    }))
-    .filter((nivel) => nivel.bloques.length > 0);
-}
 
 // Un documento cuenta como entregado si tiene archivo, o si es de los
 // que no llevan archivo (los vehículos) y tiene texto.

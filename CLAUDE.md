@@ -196,6 +196,11 @@ el rol que `core/sesion.js` resolvió una única vez.
 cuenta", fuera del dropdown: es de la empresa, no de un rol, y dentro del menú de
 residuos solo lo encontraban los generadores (2026-09-22).
 
+**Y tres links distintos pueden ir a la misma página.** "Mi registro de generador",
+"Mi autorización SMA" y "Mi autorización de transporte" apuntan los tres a
+`autorizaciones.html`: dentro se pintan solo los bloques del rol. El nombre dice
+qué se va a encontrar; la página es una.
+
 `gestion-ambiental` se borró ese mismo día: el expediente la sustituye (D-5). Ver
 `docs/plan-de-trabajo.md`, tarea 4, para qué pasó con sus módulos y su tabla.
 

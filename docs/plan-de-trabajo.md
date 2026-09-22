@@ -205,6 +205,40 @@ describe qué se hizo con cada uno.
 | 6 | La modalidad del manifiesto sale del tipo de autorización | ✅ |
 | 7 | Avisar al generador de un comprador nuevo | ⏳ bloque 3 |
 
+#### Tercera pasada: el expediente en dos pantallas (2026-09-22)
+
+Un solo formulario con todo dentro mezclaba dos cosas distintas, y se notaba en que el
+subtítulo de "Datos generales" tenía que hablar de un rol para describir algo que no depende
+del rol.
+
+| Pantalla | Qué lleva | Cómo se llega |
+|---|---|---|
+| **Mi expediente** (`expediente.html`) | Datos generales, impacto ambiental y los recomendados de la empresa (acta constitutiva, opinión del SAT) | Junto a "Mi cuenta", para los tres roles |
+| **Mis autorizaciones** (`autorizaciones.html`) | El registro de generador con su plan de manejo y su caracterización, la autorización del comprador con su ISO, y la de transporte con vehículos, póliza y permiso federal | Desde el menú de cada rol |
+
+**Una sola página, tres nombres.** No hay tres pantallas: el mismo archivo, con un enlace
+distinto en el menú de cada rol —**Mi registro de generador**, **Mi autorización SMA**, **Mi
+autorización de transporte**—, y dentro solo se pintan sus bloques. El nombre genérico habría
+sido más fácil y no dice nada.
+
+**El impacto ambiental se queda arriba**, aunque dependa del rol: es requisito para publicar o
+comprar, no una autorización por planta. Al transportista no se le pide.
+
+**La caracterización de laboratorio bajó** a las autorizaciones: es del **material**, no de la
+empresa. Por la misma lógica bajaron el ISO del comprador y el permiso federal del
+transportista, cada uno con la autorización a la que acompaña.
+
+**Enviar a revisión cuenta las dos pantallas**, y la lista de lo que falta dice en cuál está
+cada cosa. Además, cada pantalla avisa si en la otra queda algo pendiente, con su enlace.
+
+**Supabase: nada.** Ni tabla, ni columnas, ni políticas. El reparto es de pantalla.
+
+**Dónde vive el código compartido.** Las dos páginas se diferencian en una palabra, así que el
+recorrido entero está en `ui/expediente-pantalla.js` y cada página es un cableado de 30
+líneas. No podía ir en `pages/`: las pruebas exigen que ningún módulo importe de ahí y que
+cada archivo de `pages/` tenga su HTML. Como `ui` no conoce a `data`, las funciones de la base
+entran por parámetros — el mismo trato que tiene `montarConversacion()`.
+
 #### Segunda pasada del expediente (2026-09-22, misma tarde)
 
 - **Dos niveles.** Arriba, *Documentos de la empresa* (datos generales e impacto ambiental):

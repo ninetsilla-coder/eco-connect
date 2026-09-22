@@ -59,6 +59,30 @@ export function infoEstado(estado) {
   return ESTADOS[estado] ?? ESTADOS[POR_DEFECTO];
 }
 
+// Qué decir del veredicto de UN documento. Son dos estados distintos
+// —el de la cuenta y el de cada documento— y pueden contradecirse:
+// "Verificado" arriba y "En espera de revisión" en cada papel, que es
+// justo lo que no debe leerse.
+//
+// El del documento manda cuando el equipo lo tocó de verdad. Cuando
+// sigue en `pendiente` —su valor por defecto, o sea: nadie lo miró por
+// separado— la respuesta la da la cuenta, porque el estado de la cuenta
+// ES el veredicto del equipo sobre el expediente entero:
+//
+//   cuenta verificada     el expediente se revisó y pasó
+//   cuenta en revisión    está en la cola
+//   cuenta sin enviar     no hay nada que esperar: aún no se ha mandado
+//
+// Devuelve null cuando no hay nada honesto que decir.
+export function etiquetaRevision(estadoDocumento, estadoCuenta) {
+  if (estadoDocumento === "aprobado") return ["Aprobado", "aprobado"];
+  if (estadoDocumento === "rechazado") return ["Rechazado", "rechazado"];
+
+  if (estadoCuenta === "verificado") return ["Aprobado", "aprobado"];
+  if (estadoCuenta === "en_revision") return ["En revisión", "pendiente"];
+  return null;
+}
+
 // Ver publicaciones no depende del estado: cualquiera explora el
 // catálogo (§3). Lo que se reserva a las cuentas verificadas es
 // contactar, comprar, publicar y ofrecer transporte.

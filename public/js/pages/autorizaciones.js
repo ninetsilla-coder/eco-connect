@@ -1,15 +1,17 @@
 // ==============================================================
-// Página: expediente.html
+// Página: autorizaciones.html
 // ==============================================================
-// "Mi expediente" son los documentos que describen a la EMPRESA: se
-// llenan una vez y valen para cualquier rol. Lo que la SMA autoriza
-// está en autorizaciones.html, porque depende del rol y se repite por
-// establecimiento.
+// Lo que la SMA autoriza a esta empresa. Es la segunda mitad del
+// expediente y está aparte por dos razones: depende del rol —cada
+// empresa ve solo sus bloques— y se repite POR ESTABLECIMIENTO, así que
+// es la parte que crece.
 //
-// El recorrido completo vive en ui/expediente-pantalla.js: las dos
-// páginas se diferencian en qué pantalla piden, y en nada más. Aquí
-// solo se conectan los cables, que es lo único que `pages/` puede
-// hacer (§4.1).
+// Los tres roles llegan aquí desde su propio enlace del menú ("Mi
+// registro de generador", "Mi autorización SMA", "Mi autorización de
+// transporte"): una sola página, tres nombres, porque lo que cambia son
+// los bloques que se pintan, no el recorrido.
+//
+// Gemela de expediente.js: mismo cableado, otra pantalla.
 // ==============================================================
 
 import { montarNavbar } from "../ui/navbar.js";
@@ -26,7 +28,7 @@ import { montarExpediente, SUBTITULOS } from "../ui/expediente-pantalla.js";
 montarNavbar();
 
 montarExpediente({
-  pantallaId: "empresa",
+  pantallaId: "autorizaciones",
   subtitulos: SUBTITULOS,
   campos: CAMPOS,
   materiales: MATERIALES,

@@ -19,8 +19,10 @@ import assert from "node:assert/strict";
 
 import {
   documentosDeRol, bloquesDeRol, faltantes, puedeEnviarse, expedienteCompleto,
-  materialesAmparados, amparaMaterial, nivelesDeRol, admiteVarios, filasDe,
+  materialesAmparados, amparaMaterial, admiteVarios, filasDe,
+  bloquesDePantalla, documentosDePantalla, faltantesPorPantalla,
 } from "../public/js/data/expediente.js";
+import { textoPendientes } from "../public/js/ui/expediente-pantalla.js";
 
 // Un expediente con todos los obligatorios del rol entregados.
 function completarObligatorios(rol) {
@@ -161,25 +163,68 @@ describe("cuándo se puede enviar a revisión", () => {
   });
 });
 
-// El expediente tiene dos niveles, y la diferencia no es de orden: lo
+// El expediente vive en dos pantallas, y la frontera no es estética: lo
 // de la empresa se llena una vez y vale para cualquier rol; lo que
-// autoriza la SMA se repite por establecimiento.
-describe("los dos niveles del expediente", () => {
-  test("los documentos de la empresa no dependen del rol", () => {
+// autoriza la SMA depende del rol y se repite por establecimiento.
+describe("las dos pantallas del expediente", () => {
+  const nombresDeBloques = (rol, pantalla) =>
+    bloquesDePantalla(rol, pantalla).map((b) => b.nombre);
+
+  test("los datos generales los piden los tres roles", () => {
     ["proveedor", "comprador", "logistica"].forEach((rol) => {
-      const empresa = nivelesDeRol(rol).find((n) => n.id === "empresa");
-      const nombres = empresa.bloques.map((b) => b.nombre);
-      assert.ok(nombres.includes("Datos generales"), rol);
+      assert.ok(nombresDeBloques(rol, "empresa").includes("Datos generales"), rol);
     });
   });
 
-  test("cada rol ve sus autorizaciones en el segundo nivel", () => {
-    const bloques = (rol) =>
-      nivelesDeRol(rol).find((n) => n.id === "autorizaciones").bloques.map((b) => b.nombre);
+  // El impacto ambiental es requisito para publicar o comprar, así que
+  // va con los documentos de la empresa; al transportista no se le pide.
+  test("el impacto ambiental está en Mi expediente, y no para el transportista", () => {
+    assert.ok(nombresDeBloques("proveedor", "empresa").includes("Impacto ambiental"));
+    assert.ok(nombresDeBloques("comprador", "empresa").includes("Impacto ambiental"));
+    assert.ok(!nombresDeBloques("logistica", "empresa").includes("Impacto ambiental"));
+    assert.ok(!nombresDeBloques("logistica", "autorizaciones").includes("Impacto ambiental"));
+  });
 
-    assert.deepEqual(bloques("proveedor"), ["Registro de generador"]);
-    assert.deepEqual(bloques("comprador"), ["Autorización SMA"]);
-    assert.deepEqual(bloques("logistica"), ["Autorización de transporte"]);
+  test("cada rol ve solo su autorización en la segunda pantalla", () => {
+    assert.deepEqual(nombresDeBloques("proveedor", "autorizaciones"), ["Registro de generador"]);
+    assert.deepEqual(nombresDeBloques("comprador", "autorizaciones"), ["Autorización SMA"]);
+    assert.deepEqual(nombresDeBloques("logistica", "autorizaciones"), ["Autorización de transporte"]);
+  });
+
+  // La caracterización de laboratorio es del MATERIAL, no de la
+  // empresa, así que acompaña al registro de generador. Los
+  // recomendados que sí son de la empresa se quedan arriba.
+  test("los recomendados van con lo que acompañan", () => {
+    const conAutorizacion = documentosDePantalla("proveedor", "autorizaciones").map((d) => d.id);
+    const deEmpresa = documentosDePantalla("proveedor", "empresa").map((d) => d.id);
+
+    assert.ok(conAutorizacion.includes("caracterizacion_laboratorio"));
+    assert.ok(deEmpresa.includes("acta_constitutiva"));
+    assert.ok(deEmpresa.includes("opinion_sat"));
+    assert.ok(!deEmpresa.includes("caracterizacion_laboratorio"));
+
+    assert.ok(documentosDePantalla("comprador", "autorizaciones")
+      .map((d) => d.id).includes("certificacion_ambiental"));
+    assert.ok(documentosDePantalla("logistica", "autorizaciones")
+      .map((d) => d.id).includes("permiso_federal"));
+  });
+
+  // El botón de enviar cuenta las dos pantallas. Sin decir en cuál está
+  // cada pendiente, quien lo lee lo busca en la que tiene delante.
+  test("lo que falta se reparte diciendo en qué pantalla está", () => {
+    const grupos = faltantesPorPantalla("proveedor", []);
+    const empresa = grupos.find((g) => g.id === "empresa");
+    const autorizaciones = grupos.find((g) => g.id === "autorizaciones");
+
+    assert.ok(empresa.documentos.some((d) => d.id === "constancia_fiscal"));
+    assert.ok(autorizaciones.documentos.some((d) => d.id === "registro_generador"));
+    assert.equal(empresa.pagina, "expediente.html");
+    assert.equal(autorizaciones.pagina, "autorizaciones.html");
+  });
+
+  test("con el expediente completo no falta nada en ninguna pantalla", () => {
+    const grupos = faltantesPorPantalla("comprador", completarObligatorios("comprador"));
+    grupos.forEach((g) => assert.deepEqual(g.documentos, [], g.id));
   });
 
   // Solo las autorizaciones admiten varios registros. Duplicar una
@@ -217,6 +262,36 @@ describe("los dos niveles del expediente", () => {
     ];
 
     assert.deepEqual(faltantes("proveedor", guardados), []);
+  });
+});
+
+// "Ya puedes operar" y "te falta un documento obligatorio" se leían
+// juntos y se contradecían. Pueden ser ciertos los dos: una cuenta
+// verificada se encuentra con documentos que el catálogo no pedía
+// cuando la revisaron. Pasó al añadir el plan de manejo, y volverá a
+// pasar cada vez que el expediente crezca.
+describe("cómo se anuncia lo que falta", () => {
+  test("a una cuenta verificada no se le dice que le falta para operar", () => {
+    const { titulo, detalle, intro } = textoPendientes(1, true);
+
+    assert.doesNotMatch(titulo, /falta/i);
+    assert.match(detalle, /puedes seguir operando/i);
+    assert.match(intro, /ya está verificada/i);
+  });
+
+  test("a una cuenta sin verificar sí, porque es lo que la frena", () => {
+    const { titulo, detalle } = textoPendientes(1, false);
+
+    assert.match(titulo, /falta/i);
+    assert.match(detalle, /antes de poder enviarlo/i);
+  });
+
+  // "1 documento(s) obligatorio(s) pendiente(s)" se lee como un error
+  // del programa, no como una frase.
+  test("el plural se escribe, no se sugiere con paréntesis", () => {
+    assert.match(textoPendientes(1, false).detalle, /1 documento obligatorio pendiente\b/);
+    assert.match(textoPendientes(3, false).detalle, /3 documentos obligatorios pendientes/);
+    assert.doesNotMatch(textoPendientes(2, true).detalle, /\(s\)/);
   });
 });
 

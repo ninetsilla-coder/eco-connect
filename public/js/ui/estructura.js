@@ -70,15 +70,21 @@ export const HEADER = `
           <div class="dropdown-menu" id="dropdown-residuos">
             <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
             <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
+            <!-- Los tres enlaces siguientes van a la MISMA página: cada
+                 rol la ve nombrada como lo suyo, y dentro solo aparecen
+                 sus bloques. -->
+            <a href="autorizaciones.html" data-role="proveedor">Mi registro de generador</a>
             <a href="manifiesto.html" data-role="proveedor">Manifiesto</a>
 
             <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
             <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
+            <a href="autorizaciones.html" data-role="logistica">Mi autorización de transporte</a>
             <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
 
             <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
             <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
             <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
+            <a href="autorizaciones.html" data-role="comprador">Mi autorización SMA</a>
             <a href="pago.html" data-role="comprador">Pago de una operación</a>
           </div>
         </div>

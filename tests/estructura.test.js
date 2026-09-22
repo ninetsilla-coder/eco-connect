@@ -56,8 +56,8 @@ describe("el markup no vuelve a los HTML", () => {
   // `pago.html` y `manifiesto.html`, y → 15 al borrar
   // `gestion-ambiental.html`, que el expediente sustituye (D-5). Todo
   // el 2026-09-22. Cambiarlo es deliberado, nunca un efecto secundario.
-  test("las 15 páginas siguen existiendo", () => {
-    assert.equal(PAGINAS.length, 15);
+  test("las 16 páginas siguen existiendo", () => {
+    assert.equal(PAGINAS.length, 16);
   });
 
   // Antes el header estaba escrito en el HTML, así que una página que
