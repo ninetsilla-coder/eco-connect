@@ -91,7 +91,7 @@ grafo de dependencias —externo e interno— está fijado en
 | `@supabase/supabase-js` | versión **exacta** (`@2.116.0`) en la URL de esm.sh | con `@2`, una publicación ajena rompe el sitio sin que nadie toque el repo |
 | ídem en `main` | `@2.116.0` en los 13 HTML (jsDelivr) | misma versión en las dos ramas desde el 2026-09-18 |
 | CDN | solo `esm.sh` | `ayudas/cargador.js` intercepta ese prefijo; cambiarlo rompe las pruebas |
-| Google Fonts | una sola hoja, **idéntica en las 13 páginas** | subconjuntos distintos = páginas que se ven distintas |
+| Google Fonts | una sola hoja, **idéntica en todas las páginas** | subconjuntos distintos = páginas que se ven distintas |
 | `jsdom` | versión exacta + `package-lock.json` commiteado | usar `npm ci`, no `npm install` |
 | `serve` (solo dev) | `serve@14` en `npm run servir` | `npx serve` a secas descarga el último mayor |
 | Node | `engines: >=22` | las pruebas usan `readdirSync(recursive)` y `parentPath` |
@@ -207,8 +207,8 @@ los datos son las políticas RLS.
 
 ### El alta de cuenta (actualizada el 2026-09-22)
 
-`ui/auth-modal.js` es el único formulario de registro del sitio: lo inyecta en las
-13 páginas. **Antes `index.html` tenía su propia copia** y había que mantener las
+`ui/auth-modal.js` es el único formulario de registro del sitio: lo inyecta en
+todas las páginas. **Antes `index.html` tenía su propia copia** y había que mantener las
 dos iguales a mano; con tres campos nuevos, registrarse desde la portada y desde
 dentro habría acabado guardando datos distintos.
 
@@ -358,7 +358,9 @@ ningún error, así que lo dice la prueba.
 
 **Consecuencia nueva:** una página que no llame a `montarNavbar()` se queda sin
 cabecera y sin pie. Antes el HTML la traía puesta, así que olvidarlo no se
-notaba. Hay una prueba que lo exige en las 13.
+notaba. Hay una prueba que lo exige en todas, y otra que fija **cuántas son** (14
+desde el 2026-09-22): si una desaparece, las demás comprobaciones dejarían de
+vigilarla en silencio.
 
 ### 4.2 Una capa de datos por tabla
 

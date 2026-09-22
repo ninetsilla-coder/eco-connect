@@ -35,6 +35,8 @@ Tomadas el 2026-09-22. Mandan sobre cualquier otra lectura de los documentos.
 | D-10 | **Las cuentas que ya existen quedan como "verificado"** | Para que la demo no se tope con avisos de expediente incompleto |
 | D-11 | **Un RFC no se puede repetir** | Regla en la base que rechaza el registro si el RFC ya está usado |
 | D-12 | **En el pitch, una cuenta de ejemplo por rol** | Se enseña con tres cuentas distintas (generadora, compradora, transportista). El selector de modo de la tarea 15 se presenta **como parte del plan con inversión**, no como algo que ya funciona |
+| D-13 | **El expediente muestra solo los bloques del rol principal** | Aunque la empresa haya marcado varios roles (D-3), por ahora sube los papeles de uno. Decisión de tiempo, no de diseño: el expediente por varios roles va con la tarea 15, donde la verificación pasa a ser por rol |
+| D-14 | **Los vehículos del transportista, en un campo de texto** | Tipo y placas escritos juntos, no una lista con "añadir vehículo". La versión real es una tabla, y hace falta cuando el manifiesto se llene solo (tarea 10) |
 
 **Lo único que sigue abierto:** confirmar la fecha real del pitch. Mientras no esté, se
 trabaja contra la del calendario de abajo.
@@ -147,18 +149,32 @@ hacen falta de verdad para el manifiesto (tarea 10), así que hay que capturarla
 
 No se empieza hasta cerrar el bloque 1 (D-1).
 
-### 4. [ ] Pantalla de expediente por rol (§2)
+### 4. [x] Pantalla de expediente por rol (§2) — código listo el 2026-09-22, pendiente de aplicar en Supabase
 
 | | |
 |---|---|
-| **Archivos** | Nuevos: `public/expediente.html`, `public/js/pages/expediente.js`, `public/js/data/expediente.js`. Modificados: `public/js/ui/estructura.js` (link en el menú), `public/js/ui/auth-modal.js` (llevar ahí tras registrarse). Se reaprovechan `public/js/core/almacenamiento.js` y `public/js/ui/documentos.js` |
-| **Supabase** | **Sí.** Tabla nueva de documentos del expediente, con RLS activo y políticas de propiedad (§0.1 no lo relaja). Un bucket privado nuevo, o reusar `gestion-ambiental` con otra subcarpeta |
+| **Archivos tocados** | Nuevos: `public/expediente.html`, `public/js/pages/expediente.js`, `public/js/data/expediente.js`, `tests/expediente.test.js`. Modificados: `public/js/ui/estructura.js` (link "Mi expediente" en los tres roles), `public/js/core/almacenamiento.js`, `supabase/politicas.sql` (§8.2, §8.3 y §11), y dos pruebas que contaban páginas y buckets |
+| **Supabase** | **Sí.** Tabla `expediente_documentos` con RLS y propiedad; bucket privado `expedientes`; columnas `estado` y `volumen_anual` en `profiles`; función `enviar_expediente_a_revision()` |
 | **Tamaño** | Grande |
-| **Real o simulado** | Subir y guardar documentos: **real** (D-2). La revisión de Ashley: **simulada**, el estado se cambia a mano desde el panel. Las vigencias automáticas: **no se construyen** |
+| **Real o simulado** | Subir y guardar documentos: **real** (D-2). La revisión: **a mano en el panel**. Las vigencias: **no se construyen** |
 
-Por D-5, las pantallas de "Gestión ambiental" y "Transporte responsable" se quedan donde
-están mientras tanto. Sólo cuando el expediente funcione se decide qué pasa con ellas, y ahí
-hay que leer la contradicción C-5 antes de borrar nada.
+El catálogo de qué pide cada rol vive en `data/expediente.js`, no en la pantalla: es lógica
+pura y se prueba sin navegador. De esa lista cuelga el botón "Enviar a revisión".
+
+**El estado de la cuenta no lo escribe el navegador.** Una empresa que pudiera ponerse
+"verificado" sola dejaría sin sentido toda la revisión, así que el botón llama a una función
+de la base que solo sabe hacer un movimiento —de *pendiente* o *rechazado* a *en revisión*— y
+devuelve el estado que quedó. Es la forma de cumplir C-2 sin esperar a la tarea 5.
+
+Lo mismo con el veredicto de cada documento: `estado` y `motivo_rechazo` están fuera del
+permiso de escritura, porque RLS no filtra columnas (misma trampa que C-3).
+
+Por D-5, "Gestión ambiental" y "Transporte responsable" siguen en el menú. Cuando el
+expediente se use de verdad, leer C-5 antes de borrarlas.
+
+**Lo que no hace:** no lleva al expediente automáticamente tras registrarse (se entra por el
+menú), no hay panel del equipo, y el estado no bloquea todavía publicar ni contactar — eso
+es la tarea 5.
 
 ### 5. [ ] Estados de cuenta e insignias en el perfil (§3)
 

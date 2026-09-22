@@ -1,13 +1,13 @@
 // ==============================================================
 // Modal de autenticación
 // ==============================================================
-// Antes este markup vivía solo en index.html, pero las 13 páginas
-// tienen el botón #login-button. En las otras 12, script.js protegía
+// Antes este markup vivía solo en index.html, pero todas las páginas
+// tienen el botón #login-button. En las otras, script.js protegía
 // con `if (loginButton && authModal)` y el botón no hacía NADA: quien
 // aterrizaba sin sesión en una página interna no podía entrar.
 //
 // Ahora el módulo inyecta el modal donde falte, así que el botón
-// funciona en todas. Desde el 2026-09-22 falta en las 13: index.html
+// funciona en todas. Desde el 2026-09-22 falta en todas: index.html
 // tenía su propia copia del formulario y había que mantener los dos
 // lados iguales a mano — con tres campos nuevos, era cuestión de
 // tiempo que divergieran y que registrarse desde la portada guardara

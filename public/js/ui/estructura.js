@@ -70,14 +70,17 @@ export const HEADER = `
             <a href="publicar-residuos.html" data-role="proveedor">Publica tus residuos disponibles</a>
             <a href="mis-residuos.html" data-role="proveedor">Mis residuos publicados</a>
             <a href="gestion-ambiental.html" data-role="proveedor">Cumple con gestión ambiental</a>
+            <a href="expediente.html" data-role="proveedor">Mi expediente</a>
 
             <a href="publicar-servicio-transporte.html" data-role="logistica">Publicar servicio de transporte</a>
             <a href="mis-servicios-transporte.html" data-role="logistica">Ver mis servicios</a>
             <a href="transporte-responsable.html" data-role="logistica">Cumple con transporte responsable</a>
+            <a href="expediente.html" data-role="logistica">Mi expediente</a>
 
             <a href="comprador-explorar-residuos.html" data-role="comprador">Explorar residuos</a>
             <a href="comprador-mis-intereses.html" data-role="comprador">Mis intereses</a>
             <a href="comprador-servicios-transporte.html" data-role="comprador">Servicios de transporte</a>
+            <a href="expediente.html" data-role="comprador">Mi expediente</a>
           </div>
         </div>
 

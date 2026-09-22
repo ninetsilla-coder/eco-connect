@@ -159,7 +159,7 @@ describe("recursos externos de las páginas", () => {
 
   // Trece páginas que piden subconjuntos distintos de fuentes se ven
   // distintas entre sí. La declaración tiene que ser una sola.
-  test("las 13 páginas piden exactamente la misma hoja de fuentes", () => {
+  test("todas las páginas piden exactamente la misma hoja de fuentes", () => {
     const hojas = PAGINAS_HTML.map(
       (html) => urlsExternasDe(html).find((u) => u.includes("fonts.googleapis.com/css2")) ?? null
     );

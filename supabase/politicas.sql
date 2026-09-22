@@ -886,6 +886,133 @@ grant select on public.transporte_cumplimiento_resumen to anon, authenticated;
 
 
 -- ==============================================================
+-- 8.2 expediente_documentos   (2026-09-22)
+-- ==============================================================
+-- Los permisos ambientales que sube cada empresa
+-- (docs/cambios-plataforma.md §2). Sustituye a la documentación
+-- genérica de `residuos_gestion_ambiental` y `cumplimiento_transporte`,
+-- que pedía papeles iguales para todos: aquí cada rol tiene los suyos.
+--
+-- `estado` y `motivo_rechazo` los mueve el EQUIPO, no la empresa. En la
+-- fase 1 eso se hace a mano desde este panel (CLAUDE.md §0.1), y por eso
+-- no hay política que deje al dueño cambiarlos: la de UPDATE de abajo
+-- existe para corregir un documento antes de enviarlo, no para
+-- aprobárselo uno mismo.
+--
+-- ⚠️ Esa es la razón de que el `with check` repita la condición del
+-- `using`: sin él, el dueño podría cambiar el user_id de su fila y
+-- colgársela a otra empresa.
+
+create table if not exists public.expediente_documentos (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  bloque         text not null,
+  tipo_documento text not null,
+  subtipo        text,
+  autoridad      text,
+  numero_oficio  text,
+  fecha          date,
+  vigencia       date,
+  archivo_ruta   text,
+  notas          text,
+  estado         text not null default 'pendiente',
+  motivo_rechazo text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+-- Un documento por tipo y empresa: volver a subir la constancia
+-- sustituye a la anterior en vez de acumular copias que nadie sabe cuál
+-- es la buena.
+create unique index if not exists expediente_documento_unico
+  on public.expediente_documentos (user_id, tipo_documento);
+
+alter table public.expediente_documentos enable row level security;
+
+drop policy if exists "expediente_propio"      on public.expediente_documentos;
+drop policy if exists "expediente_inserta"     on public.expediente_documentos;
+drop policy if exists "expediente_actualiza"   on public.expediente_documentos;
+drop policy if exists "expediente_borra"       on public.expediente_documentos;
+
+create policy "expediente_propio" on public.expediente_documentos
+  for select to authenticated
+  using (auth.uid() = user_id);
+
+create policy "expediente_inserta" on public.expediente_documentos
+  for insert to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "expediente_actualiza" on public.expediente_documentos
+  for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "expediente_borra" on public.expediente_documentos
+  for delete to authenticated
+  using (auth.uid() = user_id);
+
+-- El dueño NO puede tocar el veredicto del equipo. RLS no filtra
+-- columnas (C3, C7): sin este grant, la política de UPDATE de arriba
+-- dejaría a cualquiera ponerse `estado = 'aprobado'`.
+revoke update on public.expediente_documentos from authenticated;
+grant  update (bloque, tipo_documento, subtipo, autoridad, numero_oficio,
+               fecha, vigencia, archivo_ruta, notas, updated_at)
+  on public.expediente_documentos to authenticated;
+
+
+-- ==============================================================
+-- 8.3 Estado de la cuenta y envío a revisión
+-- ==============================================================
+-- El estado decide qué puede hacer una empresa
+-- (docs/cambios-plataforma.md §3). Es, por tanto, exactamente lo que el
+-- navegador no puede escribir: una empresa que se pone `verificado`
+-- sola deja sin sentido toda la revisión.
+--
+-- `volumen_anual` sí lo escribe ella: es un dato declarado para el
+-- Score (§10), no un permiso.
+
+alter table public.profiles
+  add column if not exists estado        text not null default 'pendiente',
+  add column if not exists volumen_anual numeric;
+
+grant update (location, logo_url, updated_at, volumen_anual)
+  on public.profiles to authenticated;
+
+-- El único movimiento de estado que puede pedir el navegador, y no
+-- elige el resultado: de `pendiente` o `rechazado` a `en_revision`.
+-- Cualquier otro salto —a `verificado`, sobre todo— lo hace el equipo.
+--
+-- Devuelve el estado que quedó, para que la página no tenga que
+-- adivinarlo ni asumir que funcionó.
+create or replace function public.enviar_expediente_a_revision()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  nuevo text;
+begin
+  update public.profiles
+     set estado = 'en_revision', updated_at = now()
+   where id = auth.uid()
+     and estado in ('pendiente', 'rechazado')
+  returning estado into nuevo;
+
+  -- Sin fila actualizada, el estado es otro (ya en revisión, verificado
+  -- o vencido). Se devuelve el que hay en vez de fingir un cambio.
+  if nuevo is null then
+    select estado into nuevo from public.profiles where id = auth.uid();
+  end if;
+
+  return nuevo;
+end;
+$$;
+
+revoke execute on function public.enviar_expediente_a_revision() from public;
+grant  execute on function public.enviar_expediente_a_revision() to authenticated;
+
+
+-- ==============================================================
 -- 9. transporte_documentacion   — SELLADA A PROPÓSITO
 -- ==============================================================
 -- Hasta ahora esta tabla tenía `documentacion_lectura` con
@@ -1032,7 +1159,7 @@ create policy "sube_en_su_carpeta" on storage.objects
   for insert to authenticated
   with check (
     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
-                  'gestion-ambiental','docs-transporte')
+                  'gestion-ambiental','docs-transporte','expedientes')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -1045,7 +1172,7 @@ create policy "borra_en_su_carpeta" on storage.objects
   for delete to authenticated
   using (
     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
-                  'gestion-ambiental','docs-transporte')
+                  'gestion-ambiental','docs-transporte','expedientes')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -1061,7 +1188,7 @@ create policy "lee_publicos" on storage.objects
 create policy "lee_privados_propios" on storage.objects
   for select to authenticated
   using (
-    bucket_id in ('gestion-ambiental','docs-transporte')
+    bucket_id in ('gestion-ambiental','docs-transporte','expedientes')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -1088,12 +1215,12 @@ create policy "lee_privados_propios" on storage.objects
 --   for update to authenticated
 --   using (
 --     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
---                   'gestion-ambiental','docs-transporte')
+--                   'gestion-ambiental','docs-transporte','expedientes')
 --     and (storage.foldername(name))[1] = auth.uid()::text
 --   )
 --   with check (
 --     bucket_id in ('residuos-fotos','fotos-transporte','company-logos',
---                   'gestion-ambiental','docs-transporte')
+--                   'gestion-ambiental','docs-transporte','expedientes')
 --     and (storage.foldername(name))[1] = auth.uid()::text
 --   );
 

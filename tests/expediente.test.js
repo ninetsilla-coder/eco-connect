@@ -1,0 +1,140 @@
+// ==============================================================
+// Expediente por rol
+// ==============================================================
+// Lo que se fija aquí es el catálogo de documentos, no la pantalla:
+// qué le pide EcoConnect a cada rol y cuándo se considera completo.
+//
+// Importa porque de esa lista cuelga el botón "Enviar a revisión", y
+// ese botón mueve el estado de la cuenta. Un obligatorio que se caiga
+// del catálogo por descuido deja pasar a revisión un expediente
+// incompleto, y el equipo lo descubre con la empresa ya esperando.
+//
+// El estado de cada documento (`aprobado` / `rechazado`) no se prueba
+// aquí: lo escribe el equipo en el panel y el navegador no puede
+// tocarlo (politicas.sql §8.2).
+// ==============================================================
+
+import { test, describe } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  documentosDeRol, bloquesDeRol, faltantes, puedeEnviarse, expedienteCompleto,
+} from "../public/js/data/expediente.js";
+
+// Un expediente con todos los obligatorios del rol entregados.
+function completarObligatorios(rol) {
+  return documentosDeRol(rol)
+    .filter((doc) => doc.obligatorio)
+    .map((doc) => ({
+      tipo_documento: doc.id,
+      archivo_ruta: doc.sinArchivo ? null : `u/${doc.id}.pdf`,
+      notas: doc.sinArchivo ? "Torton, placas AB-123-CD" : null,
+    }));
+}
+
+describe("qué documentos pide cada rol", () => {
+  test("los tres roles piden los datos generales", () => {
+    ["proveedor", "comprador", "logistica"].forEach((rol) => {
+      const ids = documentosDeRol(rol).map((d) => d.id);
+      assert.ok(ids.includes("constancia_fiscal"), rol);
+      assert.ok(ids.includes("identificacion_representante"), rol);
+    });
+  });
+
+  // Cada rol tiene su autorización y NO la de los otros. Es la razón de
+  // ser del expediente: la documentación genérica que reemplaza pedía
+  // lo mismo a todos.
+  test("cada rol pide su propia autorización y no la ajena", () => {
+    const generador = documentosDeRol("proveedor").map((d) => d.id);
+    const comprador = documentosDeRol("comprador").map((d) => d.id);
+    const transportista = documentosDeRol("logistica").map((d) => d.id);
+
+    assert.ok(generador.includes("registro_generador"));
+    assert.ok(!generador.includes("autorizacion_sma"));
+    assert.ok(!generador.includes("autorizacion_transporte"));
+
+    assert.ok(comprador.includes("autorizacion_sma"));
+    assert.ok(!comprador.includes("registro_generador"));
+
+    assert.ok(transportista.includes("autorizacion_transporte"));
+    assert.ok(transportista.includes("vehiculos"));
+    assert.ok(transportista.includes("poliza_seguro"));
+  });
+
+  // El impacto ambiental lo piden generador y comprador, no el
+  // transportista (cambios-plataforma §2).
+  test("el impacto ambiental no se le pide al transportista", () => {
+    assert.ok(documentosDeRol("proveedor").some((d) => d.id === "impacto_ambiental"));
+    assert.ok(documentosDeRol("comprador").some((d) => d.id === "impacto_ambiental"));
+    assert.ok(!documentosDeRol("logistica").some((d) => d.id === "impacto_ambiental"));
+  });
+
+  test("los bloques salen agrupados y sin repetirse", () => {
+    const nombres = bloquesDeRol("logistica").map((b) => b.nombre);
+    assert.deepEqual(nombres, [...new Set(nombres)]);
+    assert.ok(nombres.includes("Datos generales"));
+    assert.ok(nombres.includes("Autorización de transporte"));
+    assert.ok(nombres.includes("Recomendados"));
+  });
+});
+
+describe("cuándo se puede enviar a revisión", () => {
+  test("un expediente vacío no se puede enviar", () => {
+    assert.equal(puedeEnviarse("proveedor", []), false);
+    assert.ok(faltantes("proveedor", []).length > 0);
+  });
+
+  test("con todos los obligatorios, sí", () => {
+    ["proveedor", "comprador", "logistica"].forEach((rol) => {
+      assert.deepEqual(faltantes(rol, completarObligatorios(rol)), [], rol);
+      assert.equal(puedeEnviarse(rol, completarObligatorios(rol)), true, rol);
+    });
+  });
+
+  // Los recomendados no bloquean: son los que dan la insignia.
+  test("los recomendados no impiden enviar", () => {
+    const guardados = completarObligatorios("comprador");
+    assert.equal(puedeEnviarse("comprador", guardados), true);
+    assert.equal(expedienteCompleto("comprador", guardados), false);
+  });
+
+  // Una fila guardada sin archivo NO cuenta como entregada. Pasaba si
+  // alguien guardaba solo el número de oficio: la fila existe, el
+  // documento no.
+  test("una fila sin archivo no cuenta como documento entregado", () => {
+    const aMedias = completarObligatorios("proveedor").map((doc) => ({
+      ...doc,
+      archivo_ruta: doc.tipo_documento === "registro_generador" ? null : doc.archivo_ruta,
+    }));
+
+    assert.deepEqual(faltantes("proveedor", aMedias), ["registro_generador"]);
+    assert.equal(puedeEnviarse("proveedor", aMedias), false);
+  });
+
+  // Los vehículos son el único obligatorio sin archivo: se entregan
+  // escribiéndolos (decisión D-14). Sin texto, tampoco cuentan.
+  test("los vehículos cuentan por su texto, no por un archivo", () => {
+    const sinTexto = completarObligatorios("logistica").map((doc) => ({
+      ...doc,
+      notas: doc.tipo_documento === "vehiculos" ? "" : doc.notas,
+    }));
+
+    assert.deepEqual(faltantes("logistica", sinTexto), ["vehiculos"]);
+  });
+
+  test("con todo, obligatorio y recomendado, el expediente está completo", () => {
+    const todos = documentosDeRol("proveedor").map((doc) => ({
+      tipo_documento: doc.id,
+      archivo_ruta: doc.sinArchivo ? null : `u/${doc.id}.pdf`,
+      notas: doc.sinArchivo ? "Torton" : null,
+    }));
+
+    assert.equal(expedienteCompleto("proveedor", todos), true);
+  });
+
+  // Un rol desconocido no debe dar un expediente "completo" por estar
+  // vacío: sin documentos que pedir, no hay nada que enviar.
+  test("un rol sin catálogo no se puede enviar", () => {
+    assert.equal(puedeEnviarse("otro", []), false);
+  });
+});

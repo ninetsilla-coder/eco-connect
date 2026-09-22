@@ -9,7 +9,9 @@
 import { supabaseClient } from "./supabase.js";
 
 // Documentación regulatoria: no debe ser legible por URL adivinada.
-export const BUCKETS_PRIVADOS = new Set(["gestion-ambiental", "docs-transporte"]);
+export const BUCKETS_PRIVADOS = new Set([
+  "gestion-ambiental", "docs-transporte", "expedientes",
+]);
 
 export function esPrivado(bucket) {
   return BUCKETS_PRIVADOS.has(bucket);

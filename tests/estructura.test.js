@@ -50,8 +50,12 @@ describe("el markup no vuelve a los HTML", () => {
     assert.deepEqual(culpables, [], `footers copiados en: ${culpables.join(", ")}`);
   });
 
-  test("las 13 páginas siguen existiendo", () => {
-    assert.equal(PAGINAS.length, 13);
+  // El número no es decoración: si una página desaparece sin querer,
+  // las demás comprobaciones de este archivo la dejan de vigilar en
+  // silencio y nadie se entera. Sube a 14 con `expediente.html`
+  // (2026-09-22). Cambiarlo es deliberado, nunca un efecto secundario.
+  test("las 14 páginas siguen existiendo", () => {
+    assert.equal(PAGINAS.length, 14);
   });
 
   // Antes el header estaba escrito en el HTML, así que una página que

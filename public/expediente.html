@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eco Connect | Mi expediente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fuentes: Anton (títulos) y Poppins (texto) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos globales -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Estilos específicos de esta página -->
+  <style>
+    .page-hero {
+      max-width: 960px;
+      margin: 40px auto 8px;
+      padding: 0 16px;
+    }
+
+    .page-hero h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .page-hero p {
+      color: #4b5563;
+      max-width: 680px;
+      font-size: 0.98rem;
+    }
+
+    .expediente-layout {
+      max-width: 960px;
+      margin: 0 auto 48px;
+      padding: 0 16px;
+    }
+
+    /* Aviso del estado de la cuenta. El color lo pone el JS. */
+    .estado-cuenta {
+      margin: 20px 0 8px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    .estado-cuenta h2 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .estado-cuenta p {
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+
+    .bloque {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px 22px 22px;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+    }
+
+    .bloque > h2 {
+      font-size: 1.1rem;
+      margin-bottom: 2px;
+    }
+
+    .bloque-sub {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    .documento {
+      border-top: 1px solid #f3f4f6;
+      padding: 16px 0 4px;
+    }
+
+    .documento-cabecera {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .documento-cabecera h3 {
+      font-size: 0.97rem;
+      font-weight: 600;
+    }
+
+    .etiqueta {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .etiqueta-obligatorio { background: #fef3c7; color: #92400e; }
+    .etiqueta-opcional    { background: #f3f4f6; color: #4b5563; }
+    .etiqueta-pendiente   { background: #e0e7ff; color: #3730a3; }
+    .etiqueta-aprobado    { background: #dcfce7; color: #166534; }
+    .etiqueta-rechazado   { background: #fee2e2; color: #991b1b; }
+
+    .documento-campos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px 14px;
+      align-items: end;
+    }
+
+    .documento-campos label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 3px;
+    }
+
+    .documento-campos input,
+    .documento-campos select,
+    .documento-campos textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 7px 9px;
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+
+    .documento-campos textarea {
+      min-height: 62px;
+      resize: vertical;
+    }
+
+    .documento-acciones {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .documento-estado {
+      font-size: 0.82rem;
+      min-height: 1.2em;
+    }
+
+    .documento-estado.error   { color: #b91c1c; }
+    .documento-estado.success { color: #166534; }
+
+    .enlace-archivo {
+      font-size: 0.82rem;
+      color: #0f3d2e;
+    }
+
+    .envio {
+      margin-top: 24px;
+      padding: 18px 22px;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+    }
+
+    .envio ul {
+      margin: 8px 0 12px 18px;
+      font-size: 0.88rem;
+      color: #4b5563;
+    }
+
+    @media (max-width: 640px) {
+      .page-hero h1 { font-size: 1.6rem; }
+      .bloque { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <main>
+    <section class="page-hero">
+      <h1>Mi expediente</h1>
+      <p>
+        Sube los permisos ambientales de tu empresa. Puedes guardar cada documento por
+        separado y volver después; solo cuando estén todos los obligatorios podrás enviarlo
+        a revisión.
+      </p>
+    </section>
+
+    <section class="expediente-layout">
+      <div class="estado-cuenta" id="estado-cuenta">
+        <h2 id="estado-titulo">Cargando...</h2>
+        <p id="estado-detalle"></p>
+      </div>
+
+      <p class="form-status" id="status-expediente" role="status" aria-live="polite"></p>
+
+      <div id="bloques"></div>
+
+      <div class="envio" id="envio" style="display: none;">
+        <h2 id="envio-titulo">Enviar a revisión</h2>
+        <div id="envio-faltantes"></div>
+        <button type="button" id="btn-enviar" class="btn btn-primary">Enviar a revisión</button>
+        <p class="form-status" id="status-envio" role="status" aria-live="polite"></p>
+      </div>
+
+      <p class="section-note">
+        Documentos proporcionados por la empresa. EcoConnect no certifica su veracidad.
+      </p>
+    </section>
+  </main>
+
+  <script type="module" src="js/pages/expediente.js"></script>
+</body>
+</html>

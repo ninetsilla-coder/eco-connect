@@ -90,10 +90,15 @@ describe("convención de rutas", () => {
 });
 
 describe("clasificación de buckets", () => {
-  test("los buckets de cumplimiento son privados", () => {
+  // El recuento importa tanto como la lista: un bucket nuevo con
+  // documentación regulatoria que se olvide de entrar aquí se subiría
+  // como público, y `referenciar()` devolvería una URL abierta sin dar
+  // ningún error. `expedientes` se sumó el 2026-09-22.
+  test("los buckets de documentación regulatoria son privados", () => {
     assert.ok(esPrivado("gestion-ambiental"));
     assert.ok(esPrivado("docs-transporte"));
-    assert.equal(BUCKETS_PRIVADOS.size, 2);
+    assert.ok(esPrivado("expedientes"));
+    assert.equal(BUCKETS_PRIVADOS.size, 3);
   });
 
   test("los buckets de catálogo son públicos", () => {
