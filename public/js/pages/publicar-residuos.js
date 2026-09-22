@@ -3,7 +3,8 @@
 // ==============================================================
 
 import { montarNavbar } from "../ui/navbar.js";
-import { requiereSesion } from "../core/sesion.js";
+import { requiereSesion, obtenerSesion } from "../core/sesion.js";
+import { crearAvisoEstado, bloquearSiNoOpera, puedeOperar } from "../ui/estado-cuenta.js";
 import { publicarResiduo, COMISION } from "../data/residuos.js";
 import {
   MATERIALES, MUNICIPIOS, UNIDADES, PERIODICIDADES,
@@ -203,6 +204,27 @@ document.querySelectorAll("[data-cerrar-formulario]").forEach((boton) => {
 });
 
 // ==============================================================
+// Estado de la cuenta
+// ==============================================================
+// Solo las cuentas verificadas publican (cambios-plataforma §3). Los
+// botones se apagan, no se esconden: quien llega aquí tiene que
+// entender qué le falta, no creer que la página está rota.
+//
+// ⚠️ Esto es aviso, no control: las políticas de la base todavía no
+// comprueban el estado (D-15, CLAUDE.md §7).
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  const aviso = crearAvisoEstado(sesion.estado, { accion: "publicar residuos" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+
+  document.querySelectorAll("[data-categoria]").forEach((boton) => {
+    bloquearSiNoOpera(boton, sesion.estado, { accion: "publicar" });
+  });
+})();
+
+// ==============================================================
 // Envío
 // ==============================================================
 
@@ -222,6 +244,15 @@ formulario?.addEventListener("submit", async (evento) => {
 
   const estado = await requiereSesion("index.html");
   if (!estado) return;
+
+  // El botón ya está apagado, pero el formulario se puede enviar con la
+  // tecla Enter: sin esto, una cuenta pendiente llegaría al insert.
+  if (!puedeOperar(estado.estado)) {
+    return mostrarEstado(
+      "Tu cuenta todavía no está verificada. Completa tu expediente para publicar.",
+      "error",
+    );
+  }
 
   const valor = (id) => document.getElementById(id)?.value.trim() ?? "";
 

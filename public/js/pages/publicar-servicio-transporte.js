@@ -5,6 +5,7 @@
 import { montarNavbar } from "../ui/navbar.js";
 import { obtenerSesion } from "../core/sesion.js";
 import { publicarServicio } from "../data/transporte.js";
+import { crearAvisoEstado, bloquearSiNoOpera, puedeOperar } from "../ui/estado-cuenta.js";
 
 montarNavbar();
 
@@ -18,13 +19,36 @@ function mostrarEstado(texto, clase = "") {
   estadoFormulario.className = clase ? `form-status ${clase}` : "form-status";
 }
 
+// Solo las cuentas verificadas ofrecen transporte (cambios-plataforma
+// §3). Aviso, no control: ver ui/estado-cuenta.js y CLAUDE.md §7.
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  const aviso = crearAvisoEstado(sesion.estado, { accion: "ofrecer transporte" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+
+  bloquearSiNoOpera(
+    formulario?.querySelector("button[type='submit']"),
+    sesion.estado,
+    { accion: "ofrecer transporte" },
+  );
+})();
+
 formulario?.addEventListener("submit", async (evento) => {
   evento.preventDefault();
   mostrarEstado("Publicando servicio...");
 
-  const { usuario } = await obtenerSesion();
+  const { usuario, estado } = await obtenerSesion();
   if (!usuario) {
     mostrarEstado("Debes iniciar sesión para publicar un servicio.", "error");
+    return;
+  }
+  if (!puedeOperar(estado)) {
+    mostrarEstado(
+      "Tu cuenta todavía no está verificada. Completa tu expediente para ofrecer transporte.",
+      "error",
+    );
     return;
   }
 

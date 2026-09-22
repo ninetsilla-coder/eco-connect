@@ -12,7 +12,7 @@
 
 import { supabaseClient } from "./supabase.js";
 
-const VACIO = { session: null, usuario: null, perfil: null, rol: null };
+const VACIO = { session: null, usuario: null, perfil: null, rol: null, estado: null };
 
 let cache = null;
 let enCurso = null;
@@ -39,6 +39,10 @@ async function cargar() {
     usuario: session.user,
     perfil: perfil ?? null,
     rol: perfil?.company_type ?? null,
+    // Las cuentas anteriores al 2026-09-22 no tienen estado. Se asume
+    // `pendiente` y no `verificado`: si algo falla, que falle hacia el
+    // lado que pide papeles, no hacia el que los da por buenos.
+    estado: perfil ? (perfil.estado ?? "pendiente") : null,
   };
 }
 

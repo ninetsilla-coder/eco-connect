@@ -14,8 +14,23 @@ import {
 } from "../data/mensajes.js";
 import { crearGaleria, crearMeta, crearDescripcion, crearTitulo } from "../ui/detalle.js";
 import { montarConversacion } from "../ui/conversacion.js";
+import { crearAvisoEstado, bloquearSiNoOpera, puedeOperar } from "../ui/estado-cuenta.js";
 
 montarNavbar();
+
+// Igual que en el detalle de residuo: ver el servicio no depende del
+// estado; contactar y guardar interés sí (cambios-plataforma §3).
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  const aviso = crearAvisoEstado(sesion.estado, { accion: "contactar ni guardar intereses" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+
+  ["btn-contactar", "btn-guardar-interes"].forEach((id) => {
+    bloquearSiNoOpera(document.getElementById(id), sesion.estado, { accion: "contactar" });
+  });
+})();
 
 const estadoPagina = document.getElementById("status-detalle-servicio");
 const layout = document.getElementById("detalle-layout");
@@ -99,9 +114,16 @@ if (!servicioId) {
           return;
         }
 
-        const { usuario } = await obtenerSesion();
+        const { usuario, estado } = await obtenerSesion();
         if (!usuario) {
           mostrarMensaje("Debes iniciar sesión para contactar al transportista.", "error");
+          return;
+        }
+        if (!puedeOperar(estado)) {
+          mostrarMensaje(
+            "Tu cuenta todavía no está verificada. Completa tu expediente para contactar.",
+            "error",
+          );
           return;
         }
         if (usuario.id === servicio.user_id) {

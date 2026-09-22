@@ -10,8 +10,23 @@ import {
   resumirCumplimiento,
 } from "../data/transporte.js";
 import { nombresDeEmpresas } from "../data/mensajes.js";
+import { obtenerSesion } from "../core/sesion.js";
+import { crearAvisoEstado, bloquearSiNoOpera } from "../ui/estado-cuenta.js";
 
 montarNavbar();
+
+// Igual que al explorar residuos: ver el directorio no depende del
+// estado, contactar sí (cambios-plataforma §3).
+let estadoCuenta = null;
+
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  estadoCuenta = sesion.estado;
+  const aviso = crearAvisoEstado(estadoCuenta, { accion: "contactar a los transportistas" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+})();
 
 const lista = document.getElementById("servicios-list");
 const estadoLista = document.getElementById("servicios-status");
@@ -113,6 +128,8 @@ function crearTarjeta(servicio, empresa) {
     window.location.href =
       `comprador-detalle-servicio-transporte.html?id=${servicio.id}&contactar=1`;
   });
+
+  bloquearSiNoOpera(botonContacto, estadoCuenta, { accion: "contactar" });
 
   acciones.append(botonVer, botonContacto);
   tarjeta.appendChild(acciones);

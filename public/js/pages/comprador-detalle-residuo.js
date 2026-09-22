@@ -17,8 +17,23 @@ import {
 } from "../data/mensajes.js";
 import { crearGaleria, crearMeta, crearDescripcion, crearTitulo } from "../ui/detalle.js";
 import { montarConversacion } from "../ui/conversacion.js";
+import { crearAvisoEstado, bloquearSiNoOpera, puedeOperar } from "../ui/estado-cuenta.js";
 
 montarNavbar();
+
+// Contactar y guardar interés son operar (cambios-plataforma §3); ver
+// la publicación, no. Aviso, no control: ver CLAUDE.md §7.
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  const aviso = crearAvisoEstado(sesion.estado, { accion: "contactar ni guardar intereses" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+
+  ["btn-contactar", "btn-guardar-interes"].forEach((id) => {
+    bloquearSiNoOpera(document.getElementById(id), sesion.estado, { accion: "contactar" });
+  });
+})();
 
 const estadoPagina = document.getElementById("status-detalle-residuo");
 const layout = document.getElementById("detalle-layout");
@@ -118,9 +133,16 @@ if (!residuoId) {
           return;
         }
 
-        const { usuario } = await obtenerSesion();
+        const { usuario, estado } = await obtenerSesion();
         if (!usuario) {
           mostrarMensaje("Debes iniciar sesión para contactar al generador.", "error");
+          return;
+        }
+        if (!puedeOperar(estado)) {
+          mostrarMensaje(
+            "Tu cuenta todavía no está verificada. Completa tu expediente para contactar.",
+            "error",
+          );
           return;
         }
         if (usuario.id === residuo.user_id) {

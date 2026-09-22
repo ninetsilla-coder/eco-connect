@@ -5,6 +5,7 @@
 import { montarNavbar } from "../ui/navbar.js";
 import { requiereSesion, invalidarSesion } from "../core/sesion.js";
 import { obtenerPerfil, actualizarPerfil, subirLogo, etiquetaRol } from "../data/perfiles.js";
+import { infoEstado, puedeOperar } from "../ui/estado-cuenta.js";
 
 montarNavbar({ cuentaClicable: false, destinoTrasLogout: "index.html" });
 
@@ -39,6 +40,38 @@ function pintarLogo(url) {
   img.alt = "Logo de la empresa";
   contenedor.innerHTML = "";
   contenedor.appendChild(img);
+}
+
+// Las insignias del perfil (cambios-plataforma §3). Se pintan con lo
+// que de verdad se sabe, no con lo que quedaría bonito:
+//
+//   "Registrado en padrón SMA"  solo si el equipo verificó la cuenta,
+//                               que es cuando cotejó los oficios.
+//   "Expediente completo"       solo si además subió los recomendados.
+//
+// Cuando no se cumplen, se muestran en gris con lo que falta, en vez de
+// esconderlas: así se ve qué se gana completando el expediente.
+function pintarInsignias(perfil) {
+  const contenedor = el("profile-insignias");
+  if (!contenedor) return;
+
+  contenedor.textContent = "";
+
+  const estado = perfil?.estado ?? "pendiente";
+  const info = infoEstado(estado);
+
+  const insignia = (texto, activa) => {
+    const span = document.createElement("span");
+    span.className = activa ? "insignia" : "insignia insignia-gris";
+    span.textContent = texto;
+    contenedor.appendChild(span);
+  };
+
+  insignia(`Cuenta: ${info.titulo}`, puedeOperar(estado));
+  insignia(
+    puedeOperar(estado) ? "Registrado en padrón SMA" : "Padrón SMA: sin cotejar",
+    puedeOperar(estado),
+  );
 }
 
 function pintar(perfil, usuario) {
@@ -90,6 +123,8 @@ function pintar(perfil, usuario) {
   // hasta entonces se dice qué lo activa, no un número inventado.
   const score = el("profile-certification");
   if (score) score.textContent = "EcoConnect Score: se calcula con tu primera operación";
+
+  pintarInsignias(perfil);
 
   if (campoUbicacion) campoUbicacion.value = perfil?.location || "";
 

@@ -37,6 +37,7 @@ Tomadas el 2026-09-22. Mandan sobre cualquier otra lectura de los documentos.
 | D-12 | **En el pitch, una cuenta de ejemplo por rol** | Se enseña con tres cuentas distintas (generadora, compradora, transportista). El selector de modo de la tarea 15 se presenta **como parte del plan con inversión**, no como algo que ya funciona |
 | D-13 | **El expediente muestra solo los bloques del rol principal** | Aunque la empresa haya marcado varios roles (D-3), por ahora sube los papeles de uno. Decisión de tiempo, no de diseño: el expediente por varios roles va con la tarea 15, donde la verificación pasa a ser por rol |
 | D-14 | **Los vehículos del transportista, en un campo de texto** | Tipo y placas escritos juntos, no una lista con "añadir vehículo". La versión real es una tabla, y hace falta cuando el manifiesto se llene solo (tarea 10) |
+| D-15 | **El estado de la cuenta bloquea solo en pantalla** | Botones apagados y aviso de qué falta, pero las reglas de la base **no** comprueban el estado: quien llame a la API directamente publica igual. Anotado como pendiente de seguridad en `CLAUDE.md` §7, como exige §0.1. **No presentarlo como control de acceso en el pitch** |
 
 **Lo único que sigue abierto:** confirmar la fecha real del pitch. Mientras no esté, se
 trabaja contra la del calendario de abajo.
@@ -176,14 +177,24 @@ expediente se use de verdad, leer C-5 antes de borrarlas.
 menú), no hay panel del equipo, y el estado no bloquea todavía publicar ni contactar — eso
 es la tarea 5.
 
-### 5. [ ] Estados de cuenta e insignias en el perfil (§3)
+### 5. [x] Estados de cuenta e insignias en el perfil (§3) — hecho el 2026-09-22
 
 | | |
 |---|---|
-| **Archivos** | `public/js/core/sesion.js` (leer el estado junto con el rol), `public/js/data/perfiles.js`, `public/js/pages/profile.js:44-68`, `public/profile.html:23-42`, y los avisos en las páginas de publicar/contactar |
-| **Supabase** | **Sí.** Columna `estado` en `profiles`. **No** debe entrar en el permiso de escritura de `politicas.sql:432`: si el usuario puede escribir su propio estado, se verifica solo. Las cuentas que ya existen se marcan "verificado" (D-10) |
+| **Archivos tocados** | Nuevos: `public/js/ui/estado-cuenta.js`, `tests/estado-cuenta.test.js`. Modificados: `public/js/core/sesion.js` (el estado viaja con la sesión), `profile.html` y `pages/profile.js` (insignias), `pages/expediente.js` (reusa el catálogo en vez de su copia), las cinco páginas de publicar y contactar, y `css/style.css` |
+| **Supabase** | No: la columna `estado` entró con la tarea 4 |
 | **Tamaño** | Mediano |
-| **Real o simulado** | Mostrar el estado y desactivar botones: **real**. Que el estado impida de verdad publicar: sólo si se añade a las políticas (ver C-2). Cambiar de estado: **a mano en el panel** |
+| **Real o simulado** | **Visual (D-15).** El aviso y los botones apagados son reales; el bloqueo de verdad no existe |
+
+Los botones se **apagan, no se esconden** (§3 lo pide así): quien llega tiene que ver qué le
+falta, no creer que la página está rota. El motivo viaja en `title` y en `aria-label`, para
+que también lo reciba quien usa un lector de pantalla.
+
+Una cuenta sin estado —las anteriores al 2026-09-22— se trata como `pendiente`, no como
+verificada: si algo falla, que falle hacia el lado que pide papeles.
+
+> 🔴 **Esto no es seguridad y no debe presentarse como tal.** Ver D-15 y `CLAUDE.md` §7,
+> donde está escrito qué falta para cerrarlo y cómo demostrarlo.
 
 Las insignias que otras empresas ven son un cambio de contrato de seguridad, no un cambio
 de pantalla. Ver C-4.

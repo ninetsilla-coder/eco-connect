@@ -13,6 +13,7 @@ import {
   enviarARevision, faltantes, puedeEnviarse, documentosDeRol, CAMPOS,
 } from "../data/expediente.js";
 import { etiquetaRol } from "../data/perfiles.js";
+import { infoEstado } from "../ui/estado-cuenta.js";
 
 montarNavbar();
 
@@ -23,31 +24,6 @@ const listaFaltantes = document.getElementById("envio-faltantes");
 const botonEnviar = document.getElementById("btn-enviar");
 const estadoEnvio = document.getElementById("status-envio");
 
-// Lo que significa cada estado para quien lo lee. El detalle sale de
-// docs/cambios-plataforma.md §3.
-const ESTADOS = {
-  pendiente: {
-    titulo: "Expediente pendiente",
-    detalle: "Completa tu expediente para empezar a operar.",
-  },
-  en_revision: {
-    titulo: "En revisión",
-    detalle: "Estamos revisando tus documentos (24 a 48 horas).",
-  },
-  verificado: {
-    titulo: "Verificado",
-    detalle: "Tu documentación está cotejada y vigente. Ya puedes operar.",
-  },
-  rechazado: {
-    titulo: "Rechazado",
-    detalle: "Revisa el motivo en los documentos marcados y vuelve a enviarlo.",
-  },
-  vencido: {
-    titulo: "Vencido",
-    detalle: "Tu autorización venció. Sube el refrendo para reactivar tus publicaciones.",
-  },
-};
-
 function mostrarEstado(elemento, texto, clase = "") {
   if (!elemento) return;
   elemento.textContent = texto;
@@ -55,8 +31,7 @@ function mostrarEstado(elemento, texto, clase = "") {
 }
 
 function pintarEstadoCuenta(perfil) {
-  const estado = perfil?.estado || "pendiente";
-  const info = ESTADOS[estado] ?? ESTADOS.pendiente;
+  const info = infoEstado(perfil?.estado || "pendiente");
 
   const titulo = document.getElementById("estado-titulo");
   const detalle = document.getElementById("estado-detalle");

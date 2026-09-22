@@ -6,9 +6,25 @@ import { montarNavbar } from "../ui/navbar.js";
 import { buscarDisponibles, textoPrecio, textoCantidad } from "../data/residuos.js";
 import { etiqueta, PERIODICIDADES, CONDICIONES, NIVELES_PROCESAMIENTO } from "../data/materiales.js";
 import { nombresDeEmpresas } from "../data/mensajes.js";
+import { obtenerSesion } from "../core/sesion.js";
 import { crearTarjetaResiduo } from "../ui/residuo-card.js";
+import { crearAvisoEstado, bloquearSiNoOpera } from "../ui/estado-cuenta.js";
 
 montarNavbar();
+
+// Explorar el catálogo no depende del estado de la cuenta; contactar
+// sí (cambios-plataforma §3). Se guarda aquí porque las tarjetas se
+// pintan después, y cada una trae su botón.
+let estadoCuenta = null;
+
+(async () => {
+  const sesion = await obtenerSesion();
+  if (!sesion?.usuario) return;
+
+  estadoCuenta = sesion.estado;
+  const aviso = crearAvisoEstado(estadoCuenta, { accion: "contactar a los generadores" });
+  if (aviso) document.querySelector("main")?.prepend(aviso);
+})();
 
 // La fila tal como se lee. Se arma aquí y no en `data/` porque mezcla
 // dos módulos de esa capa y §4.1 no deja que se importen entre ellos;
@@ -74,6 +90,8 @@ function crearTarjeta(residuo, empresa) {
   botonContacto.addEventListener("click", () => {
     window.location.href = `comprador-detalle-residuo.html?id=${residuo.id}&contactar=1`;
   });
+
+  bloquearSiNoOpera(botonContacto, estadoCuenta, { accion: "contactar" });
 
   acciones.append(botonDetalle, botonContacto);
   item.appendChild(acciones);

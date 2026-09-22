@@ -584,6 +584,24 @@ Corregidos en la migración:
 
 Pendientes:
 
+- 🔴 **El estado de la cuenta no bloquea nada de verdad** (2026-09-22). Desde la
+  tarea 5 del plan, una cuenta que no está `verificado` ve los botones de
+  publicar y contactar apagados y un aviso de qué le falta. **Eso es todo lo que
+  hay**: `ui/estado-cuenta.js` es presentación, y quien llame a la API
+  directamente publica igual. Las cinco políticas de escritura siguen
+  comprobando el rol y **no** el estado.
+
+  Es la decisión D-15 de `docs/plan-de-trabajo.md`, tomada a sabiendas para el
+  prototipo, y se anota aquí porque §0.1 lo exige. Cerrarlo es una línea por
+  política: una función `mi_estado()` gemela de `mi_rol()`, y un
+  `and public.mi_estado() = 'verificado'` en los `with check` de
+  `residuos_publicados`, `servicios_transporte` e `intereses`. Al hacerlo hay
+  que volver a correr `npm run verificar:politicas` y añadirle la prueba que
+  intente publicar con una cuenta pendiente — **la política existe cuando la
+  prueba la ve fallar**, no cuando está escrita (§6 del CONTRATO-RLS).
+
+  Mientras tanto, **no presentarlo como control de acceso en el pitch.**
+
 - **Cómo se sube la versión de `supabase-js`** (resuelto el 2026-09-18, pero el
   método vale para la próxima). Esta rama importaba `@2.39.7` mientras `main`
   cargaba `@2` flotante — que el CDN resolvía a **2.116.0**. O sea que producción

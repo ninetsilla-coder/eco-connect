@@ -1,0 +1,101 @@
+// ==============================================================
+// Estado de la cuenta: aviso y botones
+// ==============================================================
+// El estado decide qué puede hacer una empresa
+// (docs/cambios-plataforma.md §3). Aquí vive lo que se ve: el texto de
+// cada estado, el aviso y el apagado de los botones.
+//
+// ⚠️ ESTO NO ES SEGURIDAD, Y NO DEBE PRESENTARSE COMO TAL.
+// Apagar un botón no impide nada: quien llame a la API directamente
+// publica igual. Es experiencia de usuario —que no se intente algo que
+// va a fallar, y que se sepa qué falta— exactamente como
+// `requiereSesion()` (CLAUDE.md §4.3 y §4.5).
+//
+// Para que el estado bloquee de verdad hay que comprobarlo en las
+// políticas de la base, como hace `mi_rol()` con el rol. Está anotado
+// como pendiente de seguridad en CLAUDE.md §7 y decidido así para el
+// prototipo (D-15 de docs/plan-de-trabajo.md).
+// ==============================================================
+
+const POR_DEFECTO = "pendiente";
+
+export const ESTADOS = Object.freeze({
+  pendiente: {
+    titulo: "Expediente pendiente",
+    detalle: "Completa tu expediente para empezar a operar.",
+    opera: false,
+  },
+  en_revision: {
+    titulo: "En revisión",
+    detalle: "Estamos revisando tus documentos (24 a 48 horas).",
+    opera: false,
+  },
+  verificado: {
+    titulo: "Verificado",
+    detalle: "Tu documentación está cotejada y vigente. Ya puedes operar.",
+    opera: true,
+  },
+  rechazado: {
+    titulo: "Rechazado",
+    detalle: "Revisa el motivo en tu expediente y vuelve a enviarlo.",
+    opera: false,
+  },
+  vencido: {
+    titulo: "Autorización vencida",
+    detalle: "Tu autorización venció. Sube el refrendo para reactivar tus publicaciones.",
+    opera: false,
+  },
+});
+
+export function infoEstado(estado) {
+  return ESTADOS[estado] ?? ESTADOS[POR_DEFECTO];
+}
+
+// Ver publicaciones no depende del estado: cualquiera explora el
+// catálogo (§3). Lo que se reserva a las cuentas verificadas es
+// contactar, comprar, publicar y ofrecer transporte.
+export function puedeOperar(estado) {
+  return infoEstado(estado).opera === true;
+}
+
+// El aviso que se pinta arriba de la página. Devuelve null cuando la
+// cuenta está verificada: ahí no hay nada que avisar, y una barra verde
+// diciendo "todo bien" en cada pantalla es ruido.
+export function crearAvisoEstado(estado, { accion = "operar" } = {}) {
+  if (puedeOperar(estado)) return null;
+
+  const info = infoEstado(estado);
+
+  const caja = document.createElement("div");
+  caja.className = "aviso-estado";
+  caja.setAttribute("role", "status");
+
+  const titulo = document.createElement("strong");
+  titulo.textContent = info.titulo;
+
+  const detalle = document.createElement("p");
+  detalle.textContent = `${info.detalle} Mientras tanto no puedes ${accion}.`;
+
+  const enlace = document.createElement("a");
+  enlace.href = "expediente.html";
+  enlace.textContent = "Ir a mi expediente";
+
+  caja.append(titulo, detalle, enlace);
+  return caja;
+}
+
+// Apaga un botón y dice por qué. El motivo va en `title` y en
+// `aria-label` para que también lo reciba quien usa lector de pantalla:
+// un botón gris y mudo no explica nada.
+export function bloquearSiNoOpera(boton, estado, { accion = "operar" } = {}) {
+  if (!boton || puedeOperar(estado)) return false;
+
+  const info = infoEstado(estado);
+  boton.disabled = true;
+  boton.classList.add("btn-bloqueado");
+
+  const motivo = `${info.titulo}: completa tu expediente para ${accion}.`;
+  boton.title = motivo;
+  boton.setAttribute("aria-label", `${boton.textContent}. ${motivo}`);
+  return true;
+}
